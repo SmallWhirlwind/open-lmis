@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -116,5 +117,26 @@ public class ProductService {
 
   public Product getById(Long id) {
     return repository.getById(id);
+  }
+
+  public Product getExisting(Product product) {
+        return repository.getByCode(product.getCode());
+    }
+
+  public List<Product> getAllProducts(){
+    return repository.getAllProducts();
+  }
+
+  public List<Product> getProductsAfterUpdatedDate(Date afterUpdatedTime) {
+    return repository.getProductsAfterUpdatedTime(afterUpdatedTime);
+  }
+
+
+  public List<Product> getProductsForUpdateStatus(){
+    return repository.getProductCodeForUpdateStatus();
+  }
+
+  public void updateProductStatus(boolean active, long id){
+    repository.updateProductStatus(active, id);
   }
 }

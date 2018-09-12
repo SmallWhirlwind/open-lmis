@@ -131,4 +131,9 @@ public class ProgramRepository {
     return mapper.getAllIvdPrograms();
 
   }
+
+  public void associateParent(Long parentProgramId, String programCode) {
+    Long programId = getIdByCode(programCode);
+    mapper.associateProgramToParent(programId, parentProgramId);
+  }
 }

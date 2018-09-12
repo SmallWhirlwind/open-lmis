@@ -63,10 +63,12 @@ th.header {
   white-space: nowrap;
 }
 
-.table td {
-  padding: 6px;
-  color: #1a1a1a;
-  font-size: 12px;
+.table {
+  td {
+    padding: 6px;
+    color: #1a1a1a;
+    font-size: 12px;
+  }
 }
 
 /** select 2 overrides **/
@@ -223,7 +225,7 @@ div.pagination div.btn-group {
   margin-right: 3%;
 }
 
-.report-selection .btn {
+.report-selection .btn-primary {
   margin-top: 18%;
 }
 
@@ -235,12 +237,252 @@ div.pagination div.btn-group {
   margin: 5px
 }
 
-.report-title{
+.low-stock {
+  .low-stock-tag {
+    display: inline;
+  }
+  .over-stock-tag {
+    display: none;
+  }
+}
+
+.over-stock {
+  .low-stock-tag {
+    display: none;
+  }
+  .over-stock-tag {
+    display: inline;
+  }
+}
+
+.regular-stock {
+  .low-stock-tag {
+    display: none;
+  }
+  .over-stock-tag {
+    display: none;
+  }
+}
+
+.stock-out {
+  span {
+    color: red;
+  }
+
+  .low-stock-tag {
+    display: none;
+  }
+  .over-stock-tag {
+    display: none;
+  }
+}
+
+.report-title {
   text-align: center;
 }
 
-.product-report-footer{
+.product-report-footer {
   margin-left: auto;
   margin-right: auto;
-  width: 20%;
+  width: 30%;
+}
+
+.time-container div {
+  display: inline-block;
+}
+
+.date-picker {
+  width: 60%;
+  text-align: right;
+}
+
+.date-picker .form-cell {
+  text-align: left;
+}
+
+.time-tag ul li {
+  display: inline;
+}
+
+.time-tag ul li a {
+  color: #0088cc;
+}
+
+.time-tag ul li .selected {
+  color: #888787;
+}
+
+.time-tag ul li:last-child span:last-child {
+  display: none;
+}
+
+.MonthDatePicker {
+  display: none;
+}
+
+.HideTodayButton .ui-datepicker-buttonpane .ui-datepicker-current {
+  visibility: hidden;
+}
+
+.hide-calendar .ui-datepicker-calendar {
+  display: none !important;
+  visibility: hidden !important
+}
+
+#stock-out-incomplete-warning {
+  display: block;
+  margin-left: 6%;
+  color: grey;
+}
+
+#time-tag-div {
+  width: 35%;
+}
+
+.expiry-dates-td {
+  width: 80%;
+
+  & > p > span {
+    display: block;
+    width: 138px;
+    float: left;
+  }
+}
+
+.expiry-warning {
+  color: red;
+}
+
+.stock-out-report-buttom-msg {
+  text-align: center;
+}
+
+#tracer-report, #consumption-report, #adjustments-report {
+  width: 100%;
+  height: 700px
+}
+
+#legend-div {
+  width: 100%;
+}
+
+.amcharts-balloon-div-categoryAxis {
+  text-transform: capitalize;
+}
+
+#viewReqList {
+  .ngViewport {
+    height: 400px !important;
+    overflow-y: auto !important;
+  }
+
+}
+
+.app-version {
+  .fixed-header-table {
+    th:nth-child(1), td:nth-child(1), th:nth-child(2), td:nth-child(2) {
+      width: 10%;
+    }
+
+    th:nth-child(3), td:nth-child(3) {
+      width: 30%;
+    }
+
+    th:nth-child(4), td:nth-child(4) {
+      width: 50%;
+    }
+  }
+
+  .content-table {
+    height: 490px;
+  }
+}
+
+.stock-on-hand-all {
+  .fixed-header-table {
+    th:nth-child(1), td:nth-child(1), td:nth-child(2) {
+      width: 50%;
+    }
+
+    th:nth-child(2), td:nth-child(3) {
+      width: 10%;
+    }
+
+    th:nth-child(3), td:nth-child(4), th:nth-child(4), td:nth-child(5) {
+      width: 20%;
+    }
+  }
+
+  .content-table {
+    height: 300px;
+  }
+}
+
+.expriy-dates {
+  .fixed-header-table {
+    th:nth-child(1), td:nth-child(1) {
+      width: 15%;
+    }
+
+    th:nth-child(2), td:nth-child(2) {
+      width: 35%;
+    }
+
+    th:nth-child(3), td:nth-child(3) {
+      width: 50%;
+    }
+  }
+
+  .content-table {
+    height: 390px;
+  }
+}
+
+.all-product-stock-out {
+  .fixed-header-table {
+    th:nth-child(1), td:nth-child(1) {
+      width: 10%;
+    }
+
+    th:nth-child(2), td:nth-child(2) {
+      width: 35%;
+    }
+
+    th:nth-child(3), td:nth-child(3), th:nth-child(4), td:nth-child(4), th:nth-child(5), td:nth-child(5) {
+      width: 15%;
+    }
+  }
+
+  .content-table {
+    height: 250px;
+  }
+}
+
+.stock-on-hand-single {
+  .fixed-header-table {
+    th:nth-child(1), td:nth-child(1) {
+      width: 50%;
+    }
+
+    th:nth-child(2), td:nth-child(2) {
+      width: 10%;
+    }
+
+    th:nth-child(3), td:nth-child(3), th:nth-child(4), td:nth-child(4) {
+      width: 20%;
+    }
+  }
+
+  .content-table {
+    height: 300px;
+  }
+}
+
+.header-table {
+  margin-bottom: 0;
+}
+
+.content-table {
+  overflow-y: auto;
+  height: 200px;
 }

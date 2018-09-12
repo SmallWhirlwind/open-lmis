@@ -25,6 +25,7 @@ import org.supercsv.util.CsvContext;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
 
 /**
  * This class has logic to invoke corresponding respective record handler to parse data from input stream into the corresponding model.
@@ -45,8 +46,10 @@ public class CSVParser {
       csvBeanReader = new CsvBeanReader(modelClass, inputStream);
       headers = csvBeanReader.getHeaders();
       csvBeanReader.validateHeaders();
+      auditFields.setHeaders(Arrays.asList(headers));
       Importable importedModel;
 
+      recordHandler.setUp();
       while ((importedModel = csvBeanReader.readWithCellProcessors()) != null) {
         recordHandler.execute(importedModel, csvBeanReader.getRowNumber(), auditFields);
       }

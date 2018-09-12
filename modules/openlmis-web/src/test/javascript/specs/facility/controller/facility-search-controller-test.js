@@ -34,7 +34,7 @@ describe("Facility Search Controller", function () {
     expect(scope.facilityList).toEqual(facilitiesList);
     expect(scope.pagination).toEqual(pagination);
     expect(scope.currentPage).toEqual(1);
-    expect(scope.showResults).toEqual(true);
+    expect(scope.showCloseButton).toEqual(true);
     expect(scope.totalItems).toEqual(100);
   });
 
@@ -52,7 +52,7 @@ describe("Facility Search Controller", function () {
     expect(scope.facilityList).toEqual(facilitiesList);
     expect(scope.pagination).toEqual(pagination);
     expect(scope.currentPage).toEqual(1);
-    expect(scope.showResults).toEqual(true);
+    expect(scope.showCloseButton).toEqual(true);
     expect(scope.totalItems).toEqual(100);
   });
 
@@ -65,19 +65,21 @@ describe("Facility Search Controller", function () {
     expect(httpBackendSpy).not.toHaveBeenCalled();
   });
 
-  it('should clear search param and result list', function () {
+  it('should clear search param and show all result list', function () {
     var facilitiesList = [{"code": "F1", "name": "FAC1"},{"code": "F2", "name": "FAC2"}];
     scope.query = "F";
     scope.totalItems = 100;
     scope.facilityList = facilitiesList;
-    scope.showResults = true;
+    scope.showCloseButton = true;
+    var searchSpy = spyOn(scope, 'loadFacilities');
 
     scope.clearSearch();
 
-    expect(scope.showResults).toEqual(false);
+    expect(scope.showCloseButton).toEqual(false);
     expect(scope.query).toEqual("");
     expect(scope.totalItems).toEqual(0);
     expect(scope.facilityList).toEqual([]);
+    expect(searchSpy).toHaveBeenCalledWith(1,'%');
   });
 
   it('should trigger search on enter key', function () {
@@ -87,6 +89,14 @@ describe("Facility Search Controller", function () {
     scope.triggerSearch(event);
 
     expect(searchSpy).toHaveBeenCalledWith(1);
+  });
+
+  it('should search % on loaded page', function () {
+    var searchSpy = spyOn(scope, 'loadFacilities');
+    scope.currentPage = 1;
+    scope.$digest();
+
+    expect(searchSpy).toHaveBeenCalledWith(1,'%');
   });
 
   it('should set selected search option', function () {
@@ -128,5 +138,13 @@ describe("Facility Search Controller", function () {
 
     expect(navigateBackService.setData).toHaveBeenCalledWith({query: "f1", selectedSearchOption: "facility" });
     expect(location.path).toHaveBeenCalledWith('edit/1');
+  });
+
+  it('should trigger search % when change SearchType ', function () {
+    scope.searchOption = {value: "geographicZone", name: "option.value.geo.zone"};
+    var searchSpy = spyOn(scope, 'loadFacilities');
+    scope.selectSearchType(scope.searchOption);
+
+    expect(searchSpy).toHaveBeenCalledWith(1,'%');
   });
 });

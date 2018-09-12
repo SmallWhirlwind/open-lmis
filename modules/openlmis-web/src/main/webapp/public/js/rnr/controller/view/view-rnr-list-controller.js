@@ -14,7 +14,6 @@ function ViewRnrListController($scope, facilities, RequisitionsForViewing, Progr
     $scope.programLabel = messageService.get("label.none.assigned");
     $scope.selectedItems = [];
 
-
     $scope.loadRequisitions = function () {
         if ($scope.viewRequisitionForm && $scope.viewRequisitionForm.$invalid) {
             $scope.errorShown = true;
@@ -29,13 +28,22 @@ function ViewRnrListController($scope, facilities, RequisitionsForViewing, Progr
         if ($scope.selectedProgramId) requisitionQueryParameters.programId = $scope.selectedProgramId;
 
         RequisitionsForViewing.get(requisitionQueryParameters, function (data) {
-
-            $scope.requisitions = $scope.filteredRequisitions = data.rnr_list;
+            initRequisitions(data);
 
             setRequisitionsFoundMessage();
-        }, function () {
         });
     };
+
+    function initRequisitions(data){
+        angular.forEach(data.rnr_list,function(requisition){
+            if(requisition.emergency){
+                requisition.stringPeriodStartDate = '\\';
+                requisition.stringPeriodEndDate = '\\';
+            }
+        });
+
+        $scope.requisitions = $scope.filteredRequisitions = data.rnr_list;
+    }
 
     $scope.selectedFacilityId = navigateBackService.facilityId;
     $scope.startDate = navigateBackService.dateRangeStart;
@@ -100,13 +108,13 @@ function ViewRnrListController($scope, facilities, RequisitionsForViewing, Progr
 
     function redirectBasedOnFeatureToggle() {
         var url = "requisition/";
-        var urlMapping = {"ESS_MEDS": "view-requisition-via/", "MMIA": "view-requisition-mmia/"};
         var viewToggleKey = {key: "new.rnr.view"};
         FeatureToggleService.get(viewToggleKey, function (result) {
             if (result.key) {
+                var urlMapping = {"VIA": "view-requisition-via/", "ESS_MEDS": "view-requisition-via/", "MMIA": "view-requisition-mmia/"};
                 url = urlMapping[$scope.selectedItems[0].programCode];
             }
-            url += $scope.selectedItems[0].id + "/" + $scope.selectedItems[0].programId + "?supplyType=fullSupply&page=1";
+            url += $scope.selectedItems[0].id + "?supplyType=fullSupply&page=1";
             $location.url(url);
         });
     }

@@ -1,5 +1,6 @@
 package org.openlmis.restapi.service;
 
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -16,11 +17,16 @@ import org.openlmis.core.domain.StockAdjustmentReason;
 import org.openlmis.core.exception.DataException;
 import org.openlmis.core.repository.FacilityRepository;
 import org.openlmis.core.repository.StockAdjustmentReasonRepository;
+import org.openlmis.core.repository.SyncUpHashRepository;
 import org.openlmis.core.service.ProductService;
+import org.openlmis.core.utils.DateUtil;
 import org.openlmis.db.categories.UnitTests;
+import org.openlmis.restapi.domain.StockCardDTO;
+import org.openlmis.restapi.domain.StockCardMovementDTO;
 import org.openlmis.stockmanagement.builder.StockEventBuilder;
 import org.openlmis.stockmanagement.domain.StockCard;
 import org.openlmis.stockmanagement.domain.StockCardEntry;
+import org.openlmis.stockmanagement.domain.StockCardEntryKV;
 import org.openlmis.stockmanagement.dto.StockEvent;
 import org.openlmis.stockmanagement.service.StockCardService;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -32,9 +38,11 @@ import java.util.HashMap;
 import java.util.List;
 
 import static com.natpryce.makeiteasy.MakeItEasy.*;
+import static java.util.Arrays.asList;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.*;
 import static org.mockito.Matchers.anyList;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.*;
 
 @Category(UnitTests.class)
@@ -50,6 +58,8 @@ public class RestStockCardServiceTest {
 
   @Mock
   private FacilityRepository facilityRepository;
+  @Mock
+  private SyncUpHashRepository syncUpHashRepository;
   @Mock
   private ProductService productService;
   @Mock
@@ -68,44 +78,40 @@ public class RestStockCardServiceTest {
   private StockEvent stockEvent1;
   private Long userId;
 
+  @Before
+  public void setUp() throws Exception {
+    setupStockData();
+    when(facilityRepository.getById(facilityId)).thenReturn(defaultFacility);
+    when(productService.getByCode(productCode)).thenReturn(defaultProduct);
+
+    StockCard expectedStockCard = StockCard.createZeroedStockCard(defaultFacility, defaultProduct);
+    when(stockCardService.getOrCreateStockCard(facilityId, productCode)).thenReturn(expectedStockCard);
+  }
+
   @Test
   public void shouldThrowDataExceptionIfFacilityIdIsInvalid() throws Exception {
-    setupStockData();
-
     expectedException.expect(DataException.class);
     expectedException.expectMessage("error.facility.unknown");
     when(facilityRepository.getById(facilityId)).thenReturn(null);
-    when(productService.getByCode(productCode)).thenReturn(defaultProduct);
 
     restStockCardService.adjustStock(facilityId, stockEventList, userId);
   }
 
   @Test
   public void shouldThrowDataExceptionIfInvalidAdjustment() throws Exception {
-    setupStockData();
-
     expectedException.expect(DataException.class);
     expectedException.expectMessage("error.stockmanagement.invalidadjustment");
-    when(facilityRepository.getById(facilityId)).thenReturn(defaultFacility);
-    when(productService.getByCode(productCode)).thenReturn(defaultProduct);
-    StockAdjustmentReason stockAdjustmentReason = new StockAdjustmentReason();
-    stockAdjustmentReason.setAdditive(true);
-    when(stockAdjustmentReasonRepository.getAdjustmentReasonByName("some reason")).thenReturn(stockAdjustmentReason);
+    mockReasonWithName("some reason");
     stockEvent2.setReasonName(null);
-
-    StockCard expectedStockCard = StockCard.createZeroedStockCard(defaultFacility, defaultProduct);
-    when(stockCardService.getOrCreateStockCard(facilityId, productCode)).thenReturn(expectedStockCard);
 
     restStockCardService.adjustStock(facilityId, stockEventList, userId);
   }
 
   @Test
   public void shouldThrowDataExceptionIfProductIsInvalid() throws Exception {
-    setupStockData();
-
     expectedException.expect(DataException.class);
     expectedException.expectMessage("error.product.unknown");
-    when(facilityRepository.getById(facilityId)).thenReturn(defaultFacility);
+
     when(productService.getByCode(productCode)).thenReturn(null);
 
     restStockCardService.adjustStock(facilityId, stockEventList, userId);
@@ -113,12 +119,9 @@ public class RestStockCardServiceTest {
 
   @Test
   public void shouldThrowDataExceptionIfAdjustmentReasonIsInvalid() throws Exception {
-    setupStockData();
-
     expectedException.expect(DataException.class);
     expectedException.expectMessage("error.stockadjustmentreason.unknown");
-    when(facilityRepository.getById(facilityId)).thenReturn(defaultFacility);
-    when(productService.getByCode(productCode)).thenReturn(defaultProduct);
+
     String reasonName = "invalid reason";
     stockEvent2.setReasonName(reasonName);
     when(stockAdjustmentReasonRepository.getAdjustmentReasonByName(reasonName)).thenReturn(null);
@@ -128,18 +131,12 @@ public class RestStockCardServiceTest {
 
   @Test
   public void shouldCreateOrUpdateStockCardIfAdjustmentIsValid() throws Exception {
-    setupStockData();
-
     String productCode2 = "P2";
     Product product2 = make(a(ProductBuilder.defaultProduct, with(ProductBuilder.code, productCode2)));
     stockEvent2.setProductCode(productCode2);
 
-    when(facilityRepository.getById(facilityId)).thenReturn(defaultFacility);
-    when(productService.getByCode(productCode)).thenReturn(defaultProduct);
     when(productService.getByCode(productCode2)).thenReturn(product2);
-    StockAdjustmentReason stockAdjustmentReason = new StockAdjustmentReason();
-    stockAdjustmentReason.setAdditive(true);
-    when(stockAdjustmentReasonRepository.getAdjustmentReasonByName(reasonName)).thenReturn(stockAdjustmentReason);
+    mockReasonWithName(reasonName);
 
     when(stockCardService.getOrCreateStockCard(facilityId, productCode)).thenReturn(StockCard.createZeroedStockCard(defaultFacility, defaultProduct));
     when(stockCardService.getOrCreateStockCard(facilityId, productCode2)).thenReturn(StockCard.createZeroedStockCard(defaultFacility, product2));
@@ -151,8 +148,6 @@ public class RestStockCardServiceTest {
 
   @Test
   public void shouldAddStockCardEntriesWithAdjustmentReasonToStockCard() throws Exception {
-    setupStockData();
-
     String stockAdjustmentReasonName = "Issue";
     StockAdjustmentReason stockAdjustmentReason = new StockAdjustmentReason();
     stockAdjustmentReason.setName(stockAdjustmentReasonName);
@@ -164,17 +159,13 @@ public class RestStockCardServiceTest {
     stockAdjustmentReason2.setAdditive(true);
     stockEvent2.setReasonName(stockAdjustmentReasonName2);
 
-    when(facilityRepository.getById(facilityId)).thenReturn(defaultFacility);
-    when(productService.getByCode(productCode)).thenReturn(defaultProduct);
     when(stockAdjustmentReasonRepository.getAdjustmentReasonByName(stockAdjustmentReasonName)).thenReturn(stockAdjustmentReason);
     when(stockAdjustmentReasonRepository.getAdjustmentReasonByName(stockAdjustmentReasonName2)).thenReturn(stockAdjustmentReason2);
-
-    StockCard expectedStockCard = StockCard.createZeroedStockCard(defaultFacility, defaultProduct);
-    when(stockCardService.getOrCreateStockCard(facilityId, productCode)).thenReturn(expectedStockCard);
 
     List<StockCardEntry> stockCardEntries = restStockCardService.adjustStock(facilityId, stockEventList, userId);
 
     verify(stockCardService).addStockCardEntries(anyList());
+    verify(stockCardService).updateAllStockCardSyncTimeForFacilityToNow(facilityId);
 
     assertThat(stockCardEntries.get(0).getAdjustmentReason(), is(stockAdjustmentReason));
     assertThat(stockCardEntries.get(1).getAdjustmentReason(), is(stockAdjustmentReason2));
@@ -182,8 +173,6 @@ public class RestStockCardServiceTest {
 
   @Test
   public void shouldAddStockCardEntriesWithPositiveQuantityToStockCardIfReasonIsAdditive() throws Exception {
-    setupStockData();
-
     String stockAdjustmentReasonName = "Acquire";
     StockAdjustmentReason stockAdjustmentReason = new StockAdjustmentReason();
     stockAdjustmentReason.setName(stockAdjustmentReasonName);
@@ -196,12 +185,7 @@ public class RestStockCardServiceTest {
     stockEvent1.setQuantity(quantity1);
     stockEvent2.setQuantity(quantity2);
 
-    when(facilityRepository.getById(facilityId)).thenReturn(defaultFacility);
-    when(productService.getByCode(productCode)).thenReturn(defaultProduct);
     when(stockAdjustmentReasonRepository.getAdjustmentReasonByName(stockAdjustmentReasonName)).thenReturn(stockAdjustmentReason);
-
-    StockCard expectedStockCard = StockCard.createZeroedStockCard(defaultFacility, defaultProduct);
-    when(stockCardService.getOrCreateStockCard(facilityId, productCode)).thenReturn(expectedStockCard);
 
     List<StockCardEntry> stockCardEntries = restStockCardService.adjustStock(facilityId, stockEventList, userId);
 
@@ -211,8 +195,6 @@ public class RestStockCardServiceTest {
 
   @Test
   public void shouldAddStockCardEntriesWithPositiveQuantityToStockCardIfReasonIsNotAdditive() throws Exception {
-    setupStockData();
-
     String stockAdjustmentReasonName = "Issue";
     StockAdjustmentReason stockAdjustmentReason = new StockAdjustmentReason();
     stockAdjustmentReason.setName(stockAdjustmentReasonName);
@@ -225,12 +207,7 @@ public class RestStockCardServiceTest {
     stockEvent1.setQuantity(quantity1);
     stockEvent2.setQuantity(quantity2);
 
-    when(facilityRepository.getById(facilityId)).thenReturn(defaultFacility);
-    when(productService.getByCode(productCode)).thenReturn(defaultProduct);
     when(stockAdjustmentReasonRepository.getAdjustmentReasonByName(stockAdjustmentReasonName)).thenReturn(stockAdjustmentReason);
-
-    StockCard expectedStockCard = StockCard.createZeroedStockCard(defaultFacility, defaultProduct);
-    when(stockCardService.getOrCreateStockCard(facilityId, productCode)).thenReturn(expectedStockCard);
 
     List<StockCardEntry> stockCardEntries = restStockCardService.adjustStock(facilityId, stockEventList, userId);
 
@@ -240,16 +217,7 @@ public class RestStockCardServiceTest {
 
   @Test
   public void shouldAddStockCardEntriesWithUserId() throws Exception {
-    setupStockData();
-
-    when(facilityRepository.getById(facilityId)).thenReturn(defaultFacility);
-    when(productService.getByCode(productCode)).thenReturn(defaultProduct);
-    StockAdjustmentReason stockAdjustmentReason = new StockAdjustmentReason();
-    stockAdjustmentReason.setAdditive(true);
-    when(stockAdjustmentReasonRepository.getAdjustmentReasonByName(reasonName)).thenReturn(stockAdjustmentReason);
-
-    StockCard expectedStockCard = StockCard.createZeroedStockCard(defaultFacility, defaultProduct);
-    when(stockCardService.getOrCreateStockCard(facilityId, productCode)).thenReturn(expectedStockCard);
+    mockReasonWithName(reasonName);
 
     List<StockCardEntry> stockCardEntries = restStockCardService.adjustStock(facilityId, stockEventList, userId);
 
@@ -260,42 +228,26 @@ public class RestStockCardServiceTest {
 
   @Test
   public void shouldAddStockEventCustomPropsValues() throws Exception {
-    setupStockData();
     HashMap<String, String> expirationDates = new HashMap<>();
     expirationDates.put("expirationDates", "10/10/2016, 11/11/2016");
     stockEvent1.setCustomProps(expirationDates);
 
-    when(facilityRepository.getById(facilityId)).thenReturn(defaultFacility);
-    when(productService.getByCode(productCode)).thenReturn(defaultProduct);
-    StockAdjustmentReason stockAdjustmentReason = new StockAdjustmentReason();
-    stockAdjustmentReason.setAdditive(true);
-    when(stockAdjustmentReasonRepository.getAdjustmentReasonByName(reasonName)).thenReturn(stockAdjustmentReason);
-
-    StockCard expectedStockCard = StockCard.createZeroedStockCard(defaultFacility, defaultProduct);
-    when(stockCardService.getOrCreateStockCard(facilityId, productCode)).thenReturn(expectedStockCard);
+    mockReasonWithName(reasonName);
 
     List<StockCardEntry> stockCardEntries = restStockCardService.adjustStock(facilityId, stockEventList, userId);
 
-    assertTrue(stockCardEntries.get(0).getKeyValues().get(0).getValueColumn().equals("10/10/2016, 11/11/2016"));
-    assertEquals(0, stockCardEntries.get(1).getKeyValues().size());
+    assertTrue(stockCardEntries.get(0).getExtensions().get(0).getValue().equals("10/10/2016, 11/11/2016"));
+    assertEquals(0, stockCardEntries.get(1).getExtensions().size());
   }
 
   @Test
   public void shouldSaveStockEventOccurredDateToStockCardEntry() {
-    setupStockData();
     Date occurred1 = new Date();
     stockEvent1.setOccurred(occurred1);
     Date occurred2 = new Date();
     stockEvent2.setOccurred(occurred2);
 
-    when(facilityRepository.getById(facilityId)).thenReturn(defaultFacility);
-    when(productService.getByCode(productCode)).thenReturn(defaultProduct);
-    StockAdjustmentReason stockAdjustmentReason = new StockAdjustmentReason();
-    stockAdjustmentReason.setAdditive(true);
-    when(stockAdjustmentReasonRepository.getAdjustmentReasonByName(reasonName)).thenReturn(stockAdjustmentReason);
-
-    StockCard expectedStockCard = StockCard.createZeroedStockCard(defaultFacility, defaultProduct);
-    when(stockCardService.getOrCreateStockCard(facilityId, productCode)).thenReturn(expectedStockCard);
+    mockReasonWithName(reasonName);
 
     List<StockCardEntry> stockCardEntries = restStockCardService.adjustStock(facilityId, stockEventList, userId);
 
@@ -305,20 +257,12 @@ public class RestStockCardServiceTest {
 
   @Test
   public void shouldSaveStockEventDocumentNumberToStockCardEntry() {
-    setupStockData();
     String referenceNumber1 = "123";
     stockEvent1.setReferenceNumber(referenceNumber1);
     String referenceNumber2 = "456";
     stockEvent2.setReferenceNumber(referenceNumber2);
 
-    when(facilityRepository.getById(facilityId)).thenReturn(defaultFacility);
-    when(productService.getByCode(productCode)).thenReturn(defaultProduct);
-    StockAdjustmentReason stockAdjustmentReason = new StockAdjustmentReason();
-    stockAdjustmentReason.setAdditive(true);
-    when(stockAdjustmentReasonRepository.getAdjustmentReasonByName(reasonName)).thenReturn(stockAdjustmentReason);
-
-    StockCard expectedStockCard = StockCard.createZeroedStockCard(defaultFacility, defaultProduct);
-    when(stockCardService.getOrCreateStockCard(facilityId, productCode)).thenReturn(expectedStockCard);
+    mockReasonWithName(reasonName);
 
     List<StockCardEntry> stockCardEntries = restStockCardService.adjustStock(facilityId, stockEventList, userId);
 
@@ -328,17 +272,89 @@ public class RestStockCardServiceTest {
 
   @Test
   public void shouldNotCreateNewStockCardReferenceWhenTheCardAlreadyExists() {
-    setupStockData();
-    when(facilityRepository.getById(facilityId)).thenReturn(defaultFacility);
-    when(productService.getByCode(productCode)).thenReturn(defaultProduct);
+    mockReasonWithName(reasonName);
+    restStockCardService.adjustStock(facilityId, stockEventList, userId);
+    verify(stockCardService).getOrCreateStockCard(facilityId, productCode); //should only invoke once
+  }
+
+  @Test
+  public void shouldTransformStockCardToDTOWhenQueryStockCard() {
+    StockCard stockCard = new StockCard();
+    Product product = new Product();
+    product.setId(1L);
+    product.setCode("08ZH5");
+    stockCard.setTotalQuantityOnHand(10L);
+    stockCard.setProduct(product);
+    long quantity = 1L;
+    String signature = "myname";
+    String expirationDates = "2015-10-01";
+    stockCard.setEntries(asList(setupStockCardEntryData(quantity, signature, expirationDates)));
+
+    Date start = DateUtil.parseDate("2015-10-10", DateUtil.FORMAT_DATE);
+    Date end = DateUtil.parseDate("2015-10-11", DateUtil.FORMAT_DATE);
+
+
+    when(stockCardService.queryStockCardByOccurred(facilityId, start, end)).thenReturn(asList(stockCard));
+    List<StockCardDTO> stockCardDTOs = restStockCardService.queryStockCardByOccurred(facilityId, start, end);
+    StockCardDTO stockCardDTO = stockCardDTOs.get(0);
+
+    assertThat(product.getCode(), is(stockCardDTO.getProduct().getCode()));
+    assertThat(product.getId(), is(stockCardDTO.getProduct().getId()));
+    assertThat(stockCard.getTotalQuantityOnHand(), is(stockCardDTO.getStockOnHand()));
+    StockCardMovementDTO stockCardMovementDTO = stockCardDTO.getStockMovementItems().get(0);
+    assertThat(quantity, is(stockCardMovementDTO.getMovementQuantity()));
+    assertThat(signature, is(stockCardMovementDTO.getExtensions().get("signature")));
+    assertThat(expirationDates, is(stockCardMovementDTO.getExtensions().get("expirationdates")));
+  }
+
+
+  @Test
+  public void shouldUpdateAllStockCardsUpdateDateWhenListIsEmpty() throws Exception {
+    restStockCardService.updateStockCardSyncTime(123L, new ArrayList<String>());
+
+    verify(stockCardService).updateAllStockCardSyncTimeForFacilityToNow(123L);
+  }
+
+  @Test
+  public void shouldUpdateStockCardsUpdateDate() throws Exception {
+    List<String> stockCardProductCodeList = asList("P1");
+    restStockCardService.updateStockCardSyncTime(123L, stockCardProductCodeList);
+
+    verify(stockCardService).updateStockCardSyncTimeToNow(123L, stockCardProductCodeList);
+  }
+
+  @Test
+  public void shouldNotSaveStockCardEntriesWhenHashExists() throws Exception {
+    //given
+    when(syncUpHashRepository.hashExists(anyString())).thenReturn(true);
+    mockReasonWithName(reasonName);
+
+    //when
+    List<StockCardEntry> savedEntries = restStockCardService.adjustStock(facilityId, stockEventList, userId);
+
+    //then
+    verify(syncUpHashRepository, never()).save(anyString());
+    assertThat(savedEntries.size(), is(0));
+  }
+
+  @Test
+  public void shouldSaveStockCardEntriesWhenHashDoesNotExist() throws Exception {
+    //given
+    when(syncUpHashRepository.hashExists(anyString())).thenReturn(false);
+    mockReasonWithName(reasonName);
+
+    //when
+    List<StockCardEntry> savedEntries = restStockCardService.adjustStock(facilityId, stockEventList, userId);
+
+    //then
+    verify(syncUpHashRepository, times(2)).save(anyString());
+    assertThat(savedEntries.size(), is(2));
+  }
+
+  private void mockReasonWithName(String reasonName) {
     StockAdjustmentReason stockAdjustmentReason = new StockAdjustmentReason();
     stockAdjustmentReason.setAdditive(true);
     when(stockAdjustmentReasonRepository.getAdjustmentReasonByName(reasonName)).thenReturn(stockAdjustmentReason);
-    StockCard expectedStockCard = StockCard.createZeroedStockCard(defaultFacility, defaultProduct);
-    when(stockCardService.getOrCreateStockCard(facilityId, productCode)).thenReturn(expectedStockCard);
-
-    restStockCardService.adjustStock(facilityId, stockEventList, userId);
-    verify(stockCardService).getOrCreateStockCard(facilityId, productCode); //should only invoke once
   }
 
   private void setupStockData() {
@@ -362,5 +378,24 @@ public class RestStockCardServiceTest {
         with(StockEventBuilder.quantity, quantity)
     ));
     stockEventList.add(stockEvent2);
+  }
+
+
+  private StockCardEntry setupStockCardEntryData(long quantity, String signature, String expirationDates) {
+    StockCardEntry stockCardEntry = new StockCardEntry();
+    stockCardEntry.setQuantity(quantity);
+    stockCardEntry.setAdjustmentReason(new StockAdjustmentReason());
+    ArrayList<StockCardEntryKV> extensions = new ArrayList<>();
+    extensions.add(stockCArdEntryBuilder("signature", signature, 0));
+    extensions.add(stockCArdEntryBuilder("expirationdates", expirationDates, 1));
+    stockCardEntry.setExtensions(extensions);
+    return stockCardEntry;
+  }
+
+  private StockCardEntryKV stockCArdEntryBuilder(String key, String value, int index) {
+    StockCardEntryKV element = new StockCardEntryKV();
+    element.setKey(key);
+    element.setValue(value);
+    return element;
   }
 }

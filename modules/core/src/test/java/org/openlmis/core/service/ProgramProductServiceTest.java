@@ -28,6 +28,7 @@ import org.openlmis.core.repository.ProgramRepository;
 import org.openlmis.db.categories.UnitTests;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 import static com.natpryce.makeiteasy.MakeItEasy.*;
@@ -438,5 +439,31 @@ public class ProgramProductServiceTest {
 
     verify(spyService).save(programProduct1);
     verify(spyService).save(programProduct2);
+  }
+
+  @Test
+  public void shouldGetProductsByProgramAfterUpdatedDate() {
+    Program program = new Program();
+    Date afterUpdatedTime = new Date();
+    FacilityType facilityType = new FacilityType();
+    service.getProductsByProgramAfterUpdatedDateByFacilityType(program, afterUpdatedTime, facilityType);
+    verify(programProductRepository).getByProgramAfterUpdatedTimeByFacilityType(program, afterUpdatedTime, facilityType);
+  }
+
+  @Test
+  public void shouldGetLatestUpdatedProgramProducts() {
+    Date afterUpdatedTime = new Date();
+
+    service.getLatestUpdatedProgramProduct(afterUpdatedTime);
+
+    verify(programProductRepository).getLatestUpdatedProgramProduct(afterUpdatedTime);
+  }
+
+  @Test
+  public void shouldGetActiveProgramCodesByProductCode() {
+
+    service.getActiveProgramCodesByProductCode("07A06");
+
+    verify(programProductRepository).getActiveProgramCodesByProductCode("07A06");
   }
 }

@@ -1,27 +1,24 @@
-| Stable        | Development   |
-|:-------------:|:-------------:|
-| [![Master Build Status](http://build.openlmis.org/job/OpenLMIS-Stable/badge/icon)](http://build.openlmis.org/job/OpenLMIS-Stable/)     | [![Dev Build Status](http://build.openlmis.org/job/OpenLMIS-dev-branch/badge/icon)](http://build.openlmis.org/job/OpenLMIS-dev-branch/)|
+This is the Moz implementation of OpenLMIS.
 
-OpenLMIS (Open Logistics Management Information System) is software for a shared, open source solution for managing medical commodity distribution in low- and middle-income countries.  For more information, see http://openlmis.org/.
+License Terms
+---------------------------
+This program is part of the OpenLMIS logistics management information system platform software. Copyright © 2013, 2014, 2015 VillageReach, JSI, and ThoughtWorks.
 
-__Project Links:__
-* [OpenLMIS.org](http://openlmis.org)
-* [Wiki](https://openlmis.atlassian.net/wiki/display/OP)
-* [Project Management](https://openlmis.atlassian.net/projects/OLMIS/issues/)
-* [Slack](http://openlmis.slack.com)
-* [Developer Forums](https://groups.google.com/forum/#!forum/openlmis-dev)
-* [Product Committee Forums](https://groups.google.com/forum/#!forum/openlmis_product_committee)
-* [Governance Committee Forums](https://groups.google.com/forum/#!forum/openlmis-governance)
-* [Code Quality](http://sonar.openlmis.org)
-* [Build](http://build.openlmis.org)
+This site contains code and related material necessary to implement a configuration of the OpenLMIS logistics management information system platform.  See https://github.com/OpenLMIS/open-lmis/ for details of OpenLMIS.
+
+This site contains free software: you can redistribute it and/or modify it under the terms of the appropriate license.  As this site contains code developed by more than one organization and licensed under different terms you should refer to the license terms stated in each component for details.
+
+The programs and documents on this site are distributed in the hope that they will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the applicable License for more details.
+
+You should have received a copy of the GNU Affero General Public License along with this program.  If not, see http://www.gnu.org/licenses.
 
 System Requirements
 ---------------------------
 - JDK 7
-- Postgresql 9.2+
+- Postgresql 9.4
 - Git
 - Firefox
-- Gradle 2.3
+- Gradle 2.8
   * **For Linux users**
     * Download the source binary directly from the gradle website.
     * Copy the downloaded folder to `/usr/bin`
@@ -136,8 +133,8 @@ This can be caused by the timezone in `postgresql.conf` being different than you
 Tech Stack
 ---------------------------------
  - Java 1.7
- - Gradle 2.3
- - Postgres 9.2
+ - Gradle 2.8
+ - Postgres 9.4
  - Spring
  - Mybatis
  - Angularjs

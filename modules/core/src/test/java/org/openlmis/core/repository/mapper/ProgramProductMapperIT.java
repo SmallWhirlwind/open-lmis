@@ -15,9 +15,11 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
+import org.openlmis.core.builder.FacilityBuilder;
 import org.openlmis.core.builder.ProductBuilder;
 import org.openlmis.core.domain.*;
 import org.openlmis.core.query.QueryExecutor;
+import org.openlmis.core.utils.DateUtil;
 import org.openlmis.db.categories.IntegrationTests;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
@@ -26,6 +28,8 @@ import org.springframework.test.context.transaction.TransactionConfiguration;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.util.Date;
 import java.util.List;
 
@@ -62,6 +66,9 @@ public class ProgramProductMapperIT {
 
   @Autowired
   private ProductCategoryMapper productCategoryMapper;
+
+  @Autowired
+  private FacilityMapper facilityMapper;
 
   @Autowired
   QueryExecutor executor;
@@ -303,6 +310,46 @@ public class ProgramProductMapperIT {
   }
 
   @Test
+  public void shouldGetLatestUpdatedProgramProducts() {
+    Program program2 = make(a(defaultProgram, with(programName, "TB"), with(programCode, "anshul")));
+    programMapper.insert(program2);
+
+    ProgramProduct programProduct1 = new ProgramProduct(program, product, 10, true);
+    programProduct1.setProductCategory(productCategory);
+    programProduct1.setModifiedDate(DateUtil.parseDate("2010-10-10 10:10:10"));
+    ProgramProduct programProduct2 = new ProgramProduct(program2, product, 10, true);
+    programProduct2.setProductCategory(productCategory);
+    programProduct2.setModifiedDate(DateUtil.parseDate("2012-12-12 12:12:12"));
+
+    programProductMapper.insert(programProduct1);
+    programProductMapper.insert(programProduct2);
+
+    List<ProgramProduct> latestUpdatedProgramProduct = programProductMapper.getLatestUpdatedProgramProduct(DateUtil.parseDate("2011-11-11 11:11:11"));
+
+    assertThat(latestUpdatedProgramProduct.size(), is(1));
+    assertThat(latestUpdatedProgramProduct.get(0).getProduct().getCode(),is("P999"));
+  }
+
+  @Test
+  public void shouldGetActiveProgramCodeByProductCode() {
+    Program program2 = make(a(defaultProgram, with(programName, "TB"), with(programCode, "anshul")));
+    programMapper.insert(program2);
+
+    ProgramProduct programProduct1 = new ProgramProduct(program, product, 10, true);
+    programProduct1.setProductCategory(productCategory);
+    programProduct1.setActive(true);
+    ProgramProduct programProduct2 = new ProgramProduct(program2, product, 10, true);
+    programProduct2.setProductCategory(productCategory);
+    programProduct2.setActive(false);
+
+    programProductMapper.insert(programProduct1);
+    programProductMapper.insert(programProduct2);
+
+    List<String> activeProgramCodes = programProductMapper.getActiveProgramCodesByProductCode(product.getCode());
+    assertThat(activeProgramCodes.size(),is(1));
+  }
+
+  @Test
   public void shouldSearchProgramProductByProduct() {
     Pagination pagination = new Pagination(1, 10);
     Product prod1 = make(a(defaultProduct, with(primaryName, "prod1"), with(code, "p1")));
@@ -393,6 +440,98 @@ public class ProgramProductMapperIT {
     assertThat(programProducts.get(0).getProduct().getCode(), is(programProduct2.getProduct().getCode()));
     assertThat(programProducts.get(1).getProduct().getCode(), is(programProduct4.getProduct().getCode()));
     assertThat(programProducts.get(2).getProduct().getCode(), is(programProduct1.getProduct().getCode()));
+  }
+
+  @Test
+  public void shouldGetByProgramAfterUpdatedTime() throws SQLException {
+    //Make products
+    Product prod1 = make(a(defaultProduct, with(primaryName, "prod1"), with(code, "P1")));
+    Product prod2 = make(a(defaultProduct, with(primaryName, "prod2"), with(code, "P2")));
+    Product prod3 = make(a(defaultProduct, with(primaryName, "prod3"), with(code, "P3")));
+    Product prod4 = make(a(defaultProduct, with(primaryName, "prod4"), with(code, "P4")));
+    Product prod5 = make(a(defaultProduct, with(primaryName, "prod5"), with(code, "P5")));
+    productMapper.insert(prod1);
+    productMapper.insert(prod2);
+    productMapper.insert(prod3);
+    productMapper.insert(prod4);
+    productMapper.insert(prod5);
+
+    //Make a program
+    Program program1 = make(a(defaultProgram, with(programName, "TB1"), with(programCode, "program1")));
+    programMapper.insert(program1);
+
+    //Make program products
+    ProgramProduct programProduct1 = new ProgramProduct(program1, prod1, 10, true);
+    programProduct1.setProductCategory(productCategory);
+    programProductMapper.insert(programProduct1);
+
+    ProgramProduct programProduct2 = new ProgramProduct(program1, prod2, 10, true);
+    programProduct2.setProductCategory(productCategory);
+    programProductMapper.insert(programProduct2);
+
+    ProgramProduct programProduct3 = new ProgramProduct(program1, prod3, 10, true);
+    programProduct3.setProductCategory(productCategory);
+    programProductMapper.insert(programProduct3);
+
+    ProgramProduct programProduct4 = new ProgramProduct(program1, prod4, 10, true);
+    programProduct4.setProductCategory(productCategory);
+    programProductMapper.insert(programProduct4);
+
+    ProgramProduct programProduct5 = new ProgramProduct(program1, prod5, 10, true);
+    programProduct5.setProductCategory(productCategory);
+    programProductMapper.insert(programProduct5);
+
+    //Make facility type approved products
+    Facility facility = make(a(FacilityBuilder.defaultFacility));
+    facilityMapper.insert(facility);
+
+    FacilityType facilityType = new FacilityType();
+    Long facilityTypeId = FacilityBuilder.FACILITY_TYPE_ID;
+    facilityType.setId(facilityTypeId);
+
+    FacilityTypeApprovedProduct facilityTypeApprovedProduct = new FacilityTypeApprovedProduct(facilityType, programProduct1, 3.0);
+    facilityApprovedProductMapper.insert(facilityTypeApprovedProduct);
+
+    FacilityTypeApprovedProduct facilityTypeApprovedProduct4 = new FacilityTypeApprovedProduct(facilityType, programProduct4, 3.0);
+    facilityApprovedProductMapper.insert(facilityTypeApprovedProduct4);
+
+    FacilityTypeApprovedProduct facilityTypeApprovedProduct5 = new FacilityTypeApprovedProduct(facilityType, programProduct5, 3.0);
+    facilityApprovedProductMapper.insert(facilityTypeApprovedProduct5);
+
+    //Set time
+    Date lastUpdatedTime = DateUtil.parseDate("2025-10-10 10:10:10");
+    Timestamp date1 = new Timestamp(DateUtil.parseDate("2025-12-12 12:12:12").getTime());
+    Timestamp date2 = new Timestamp(DateUtil.parseDate("2025-11-11 11:11:11").getTime());
+
+    //Update modified date for product 1 & 3
+    updateModifiedDateForProduct(date1, prod1.getId());
+    updateModifiedDateForProduct(date2, prod3.getId());
+
+    //Update modified date for program product 4
+    updateModifiedDateForProgramProduct(date1, programProduct4.getId());
+
+    //Update modified date for facility approved product 5
+    updateModifiedDateForFacilityApprovedProgramProduct(date1, facilityTypeApprovedProduct5.getId());
+
+    List<ProgramProduct> programProducts = programProductMapper.getByProgramAfterUpdatedTimeFilterByFacilityType(program1.getId(), lastUpdatedTime, facilityType.getId());
+
+    //Should only get product 1 because it is after 2015-10-10 and it is approved by the facility type
+    assertThat(programProducts.size(), is(3));
+    assertThat(programProducts.get(0).getProduct().getCode(), is(programProduct1.getProduct().getCode()));
+    assertThat(programProducts.get(1).getProduct().getCode(), is(programProduct4.getProduct().getCode()));
+    assertThat(programProducts.get(2).getProduct().getCode(), is(programProduct5.getProduct().getCode()));
+  }
+
+  private void updateModifiedDateForProduct(Timestamp modifiedDate, Long productId) throws SQLException {
+    executor.executeUpdate("UPDATE products SET modifieddate = ? WHERE id = ?", modifiedDate, productId);
+  }
+
+  private void updateModifiedDateForProgramProduct(Timestamp modifiedDate, Long programProductId) throws SQLException {
+    executor.executeUpdate("UPDATE program_products SET modifieddate = ? WHERE id = ?", modifiedDate, programProductId);
+  }
+
+  private void updateModifiedDateForFacilityApprovedProgramProduct(Timestamp modifiedDate, Long facilityApprovedProductId) throws SQLException {
+    executor.executeUpdate("UPDATE facility_approved_products SET modifieddate = ? WHERE id = ?", modifiedDate, facilityApprovedProductId);
   }
 
   private void assertContainsProgramProduct(List<ProgramProduct> returnedProducts, final ProgramProduct programProduct) {

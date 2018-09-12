@@ -39,7 +39,7 @@ describe("User Search Controller", function () {
     expect(scope.userList).toEqual([user]);
     expect(scope.pagination).toEqual(pagination);
     expect(scope.currentPage).toEqual(1);
-    expect(scope.showResults).toEqual(true);
+    expect(scope.showCloseButton).toEqual(true);
     expect(scope.totalItems).toEqual(100);
   });
 
@@ -57,7 +57,7 @@ describe("User Search Controller", function () {
     expect(scope.userList).toEqual([user]);
     expect(scope.pagination).toEqual(pagination);
     expect(scope.currentPage).toEqual(1);
-    expect(scope.showResults).toEqual(true);
+    expect(scope.showCloseButton).toEqual(true);
     expect(scope.totalItems).toEqual(100);
   });
 
@@ -76,14 +76,16 @@ describe("User Search Controller", function () {
     scope.query = "j";
     scope.totalItems = 100;
     scope.userList = userList;
-    scope.showResults = true;
+    scope.showCloseButton = true;
+    var searchSpy = spyOn(scope, 'loadUsers');
 
     scope.clearSearch();
 
-    expect(scope.showResults).toEqual(false);
+    expect(scope.showCloseButton).toEqual(false);
     expect(scope.query).toEqual("");
     expect(scope.totalItems).toEqual(0);
     expect(scope.userList).toEqual([]);
+    expect(searchSpy).toHaveBeenCalledWith(1,'%');
   });
 
   it('should set query according to navigate back service', function () {
@@ -125,5 +127,14 @@ describe("User Search Controller", function () {
 
     expect(navigateBackService.setData).toHaveBeenCalledWith({query: "john"});
     expect(location.path).toHaveBeenCalledWith('edit/1');
+  });
+
+
+  it('should search % on loaded page', function () {
+    var searchSpy = spyOn(scope, 'loadUsers');
+    scope.currentPage = 1;
+    scope.$digest();
+
+    expect(searchSpy).toHaveBeenCalledWith(1,'%');
   });
 });

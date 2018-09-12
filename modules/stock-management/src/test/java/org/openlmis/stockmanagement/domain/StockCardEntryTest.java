@@ -30,17 +30,17 @@ public class StockCardEntryTest {
 
   @Test(expected = NullPointerException.class)
   public void shouldErrorOnNullStockCard() {
-    new StockCardEntry(null, StockCardEntryType.ADJUSTMENT, 1L, null, null);
+    new StockCardEntry(null, StockCardEntryType.ADJUSTMENT, 1L, null, null, null);
   }
 
   @Test(expected = NullPointerException.class)
   public void shouldErrorOnNullType() {
-    new StockCardEntry(new StockCard(), null, 1L, null, null);
+    new StockCardEntry(new StockCard(), null, 1L, null, null, null);
   }
 
   @Test
   public void shouldGetNullCustomPropsFromEmptyKeyValues() {
-    StockCardEntry entry = new StockCardEntry(new StockCard(), StockCardEntryType.ADJUSTMENT, 1L, null, null);
+    StockCardEntry entry = new StockCardEntry(new StockCard(), StockCardEntryType.ADJUSTMENT, 1L, null, null, null);
 
     Map<String, String> customProps = entry.getCustomProps();
 
@@ -52,8 +52,8 @@ public class StockCardEntryTest {
     List<StockCardEntryKV> keyValues = new ArrayList<>();
     keyValues.add(new StockCardEntryKV("testkey1", "testvalue1", new Date()));
     keyValues.add(new StockCardEntryKV("testkey2", "testvalue2", new Date()));
-    StockCardEntry entry = new StockCardEntry(new StockCard(), StockCardEntryType.ADJUSTMENT, 1L, null, null);
-    entry.setKeyValues(keyValues);
+    StockCardEntry entry = new StockCardEntry(new StockCard(), StockCardEntryType.ADJUSTMENT, 1L, null, null, null);
+    entry.setExtensions(keyValues);
 
     Map<String, String> customProps = entry.getCustomProps();
 

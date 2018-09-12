@@ -10,7 +10,7 @@
 
 
 describe('ViewRnrViaDetailController', function () {
-  var httpBackend, scope, route, requisition, messageService;
+  var httpBackend, scope, route, requisition, messageService, downloadPdfService, downloadSimamService;
 
   var submitterText = "submitterText";
   var approverText = "approverText";
@@ -19,50 +19,51 @@ describe('ViewRnrViaDetailController', function () {
     rnr: {
       facility: {code: "F10", name: "Health Facility 1"},
       fullSupplyLineItems: [
-        {id: 1, expirationDate: null},
-        {id: 2},
-        {id: 3, expirationDate: "28/02/2000"},
-        {id: 4, expirationDate: "28/02/2000"},
-        {id: 5, expirationDate: "28/02/2000"},
-        {id: 6, expirationDate: "28/02/2000"},
-        {id: 7, expirationDate: "28/02/2000"},
-        {id: 8, expirationDate: "28/02/2000"},
-        {id: 9, expirationDate: "28/02/2000"},
-        {id: 10, expirationDate: "28/02/2000"},
-        {id: 11, expirationDate: "28/02/2000"},
-        {id: 12, expirationDate: "28/02/2000"},
-        {id: 13, expirationDate: "28/02/2000"},
-        {id: 14, expirationDate: "28/02/2000"},
-        {id: 15, expirationDate: "28/02/2000"},
-        {id: 16, expirationDate: "28/02/2000"},
-        {id: 17, expirationDate: "28/02/2000"},
-        {id: 18, expirationDate: "28/02/2000"},
-        {id: 19, expirationDate: "28/02/2000"},
-        {id: 20, expirationDate: "28/02/2000"},
-        {id: 21, expirationDate: "28/02/2000"},
-        {id: 22, expirationDate: "28/02/2000"},
-        {id: 23, expirationDate: "28/02/2000"},
-        {id: 24, expirationDate: "28/02/2000"}],
+        {id: 1, expirationDate: null, categoryName: "Adult", productCode: "0A002"},
+        {id: 2, categoryName: "Adult", productCode: "0A001"},
+        {id: 3, expirationDate: "28/02/2000", categoryName: "Adult", productCode: "0B001"},
+        {id: 4, expirationDate: "28/02/2000", categoryName: "Adult"},
+        {id: 5, expirationDate: "28/02/2000", categoryName: "Adult"},
+        {id: 6, expirationDate: "28/02/2000", categoryName: "Adult"},
+        {id: 7, expirationDate: "28/02/2000", categoryName: "Adult"},
+        {id: 8, expirationDate: "28/02/2000", categoryName: "Adult"},
+        {id: 9, expirationDate: "28/02/2000", categoryName: "Adult"},
+        {id: 10, expirationDate: "28/02/2000", categoryName: "Adult"},
+        {id: 11, expirationDate: "28/02/2000", categoryName: "Adult"},
+        {id: 12, expirationDate: "28/02/2000", categoryName: "Adult"},
+        {id: 13, expirationDate: "28/02/2000", categoryName: "Children"},
+        {id: 14, expirationDate: "28/02/2000", categoryName: "Children"},
+        {id: 15, expirationDate: "28/02/2000", categoryName: "Children"},
+        {id: 16, expirationDate: "28/02/2000", categoryName: "Children"},
+        {id: 17, expirationDate: "28/02/2000", categoryName: "Children"},
+        {id: 18, expirationDate: "28/02/2000", categoryName: "Children"},
+        {id: 19, expirationDate: "28/02/2000", categoryName: "Children"},
+        {id: 20, expirationDate: "28/02/2000", categoryName: "Children"},
+        {id: 21, expirationDate: "28/02/2000", categoryName: "Children"},
+        {id: 22, expirationDate: "28/02/2000", categoryName: "Children"},
+        {id: 23, expirationDate: "28/02/2000", categoryName: "Solution"},
+        {id: 24, expirationDate: "28/02/2000", categoryName: "Solution"}],
       period: {stringStartDate: "01/01/2014", stringEndDate: "31/01/2014", stringYear: "2014"},
       regimenLineItems: [
-        {id: 40, patientsOnTreatment: 1},
-        {id: 41, patientsOnTreatment: 1},
-        {id: 42, patientsOnTreatment: 1},
-        {id: 43, patientsOnTreatment: 1},
-        {id: 44, patientsOnTreatment: 1},
-        {id: 45, patientsOnTreatment: 1},
-        {id: 46, patientsOnTreatment: 1},
-        {id: 47, patientsOnTreatment: 1},
-        {id: 48, patientsOnTreatment: 1},
-        {id: 49, patientsOnTreatment: 1},
-        {id: 50, patientsOnTreatment: 1},
-        {id: 51, patientsOnTreatment: 1},
-        {id: 52, patientsOnTreatment: 1},
-        {id: 53, patientsOnTreatment: 1},
-        {id: 54, patientsOnTreatment: 1},
-        {id: 55, patientsOnTreatment: 1},
-        {id: 57, patientsOnTreatment: 1},
-        {id: 56, patientsOnTreatment: 1}],
+        {id: 40, categoryName: "Adults", patientsOnTreatment: 1},
+        {id: 41, categoryName: "Adults", patientsOnTreatment: 1},
+        {id: 42, categoryName: "Adults", patientsOnTreatment: 1},
+        {id: 43, categoryName: "Adults", patientsOnTreatment: 1},
+        {id: 44, categoryName: "Adults", patientsOnTreatment: 1},
+        {id: 45, categoryName: "Paediatrics", patientsOnTreatment: 1},
+        {id: 46, categoryName: "Paediatrics", patientsOnTreatment: 1},
+        {id: 47, categoryName: "Paediatrics", patientsOnTreatment: 1},
+        {id: 48, categoryName: "Paediatrics", patientsOnTreatment: 1},
+        {id: 49, categoryName: "Adults", patientsOnTreatment: 1},
+        {id: 50, categoryName: "Adults", patientsOnTreatment: 1},
+        {id: 51, categoryName: "Adults", patientsOnTreatment: 1},
+        {id: 52, categoryName: "Adults", patientsOnTreatment: 1},
+        {id: 53, categoryName: "Paediatrics", patientsOnTreatment: 1},
+        {id: 54, categoryName: "Paediatrics", patientsOnTreatment: 1},
+        {id: 55, categoryName: "Paediatrics", patientsOnTreatment: 1},
+        {id: 57, categoryName: "Paediatrics", patientsOnTreatment: 1},
+        {id: 56, categoryName: "Paediatrics", patientsOnTreatment: 1},
+        {id: 57, categoryName: "Paediatrics", patientsOnTreatment: 1}],
       patientQuantifications: [
         {id: 1, total: 1},
         {id: 2, total: 1},
@@ -77,12 +78,17 @@ describe('ViewRnrViaDetailController', function () {
   };
 
   beforeEach(module('openlmis'));
-  beforeEach(inject(function ($httpBackend, $rootScope, $controller, _messageService_) {
+
+  beforeEach(inject(function ($httpBackend, $rootScope, $controller, _messageService_, _downloadPdfService_, _downloadSimamService_) {
     httpBackend = $httpBackend;
     scope = $rootScope.$new();
     requisition = {lineItems: [], nonFullSupplyLineItems: [], regimenLineItems: [], equipmentLineItems :[], period: {numberOfMonths: 3}};
-    route = {current: {params:{'programId': 2, 'rnr': 1, 'supplyType': 'fullSupply'}}}
+    route = {current: {params:{'programId': 2, 'rnr': 1, 'supplyType': 'fullSupply'}}};
     messageService =  _messageService_;
+    downloadPdfService = _downloadPdfService_;
+    downloadSimamService = _downloadSimamService_;
+    spyOn(downloadPdfService, "init").andReturn(function(a,b){});
+    spyOn(downloadSimamService, "init").andReturn(function(a,b){});
     $controller(ViewRnrMmiaController, {$scope: scope, $route: route});
   }));
 
@@ -91,7 +97,7 @@ describe('ViewRnrViaDetailController', function () {
     initMockRequisition();
 
     expect(scope.rnr.fullSupplyLineItems.length).toBe(24);
-    expect(scope.rnr.regimenLineItems.length).toBe(18);
+    expect(scope.rnr.regimenLineItems.length).toBe(19);
     expect(scope.rnr.patientQuantifications.length).toBe(7);
   });
 
@@ -113,25 +119,77 @@ describe('ViewRnrViaDetailController', function () {
   it('should format validate',function(){
     scope.rnr = mockedRnrItem.rnr;
     scope.initProduct();
-    //initMockRequisition();
 
-    expect(scope.adult[0].expirationDate).toBe(null);
-    expect(scope.adult[1].expirationDate).toBe(undefined);
-    expect(scope.adult[2].expirationDate).toEqual(new Date("2000-02-28"));
-    expect(scope.adult.length).toBe(12);
-    expect(scope.children.length).toBe(10);
-    expect(scope.other.length).toBe(2);
+    var actualResult = _.groupBy(scope.rnrLineItems, function (item) {
+      return item.categoryName;
+    });
+
+    expect(actualResult.Adult[0].productCode).toEqual("0A001");
+    expect(actualResult.Adult[1].productCode).toEqual("0A002");
+    expect(actualResult.Adult[2].productCode).toEqual("0B001");
+    expect(actualResult.Adult[1].expirationDate).toBe(null);
+    expect(actualResult.Adult[0].expirationDate).toBe(undefined);
+    expect(actualResult.Adult[2].expirationDate).toEqual("Feb 2000");
+    expect(actualResult.Adult.length).toBe(14);
+    expect(actualResult.Adult[13].productCode).toBe(undefined);
+    expect(actualResult.Children.length).toBe(11);
+    expect(actualResult.Children[10].productCode).toBe(undefined);
+    expect(actualResult.Solution.length).toBe(3);
+    expect(actualResult.Solution[2].productCode).toBe(undefined);
+  });
+
+  it('should initProduct exclude undefined category',function(){
+    var mockedRnrItem = {
+      rnr: {
+        facility: {code: "F10", name: "Health Facility 1"},
+        fullSupplyLineItems: [
+          {id: 1, expirationDate: null, categoryName: "Adult", productCode: "0A002"},
+          {id: 24, expirationDate: "28/02/2000", categoryName: "Solution"}],
+      }
+    };
+
+    scope.rnr = mockedRnrItem.rnr;
+    scope.initProduct();
+
+    var actualResult = _.groupBy(scope.rnrLineItems, function (item) {
+      return item.categoryName;
+    });
+
+    expect(actualResult.Adult.length).toBe(3);
+    expect(actualResult.Children.length).toBe(1);
+    expect(actualResult.Solution.length).toBe(2);
+  });
+
+  it('should initRegime exclude undefined category',function(){
+    var mockedRnrItem = {
+      rnr: {
+        facility: {code: "F10", name: "Health Facility 1"},
+        regimenLineItems: [
+          {id: 40, categoryName: "Adults", patientsOnTreatment: 1}]
+      }
+    };
+    scope.rnr = mockedRnrItem.rnr;
+    scope.initRegime();
+
+    var actualRegimens = _.groupBy(scope.regimens, function (item) {
+      return item.categoryName;
+    });
+
+    expect(actualRegimens.Adults.length).toBe(3);
+    expect(actualRegimens.Paediatrics.length).toBe(2);
   });
 
   it('should calculate regime total',function(){
     scope.rnr = mockedRnrItem.rnr;
     scope.initRegime();
-    //initMockRequisition();
 
-    expect(scope.regimeTotal).toBe(18);
-    expect(scope.regimeAdult.length).toBe(8);
-    expect(scope.regimeChildren.length).toBe(10);
+    var actualRegimens = _.groupBy(scope.regimens, function (item) {
+      return item.categoryName;
+    });
 
+    expect(scope.regimeTotal).toBe(19);
+    expect(actualRegimens.Adults.length).toBe(11);
+    expect(actualRegimens.Paediatrics.length).toBe(12);
   });
 
   function initMockRequisition() {

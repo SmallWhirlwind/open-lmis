@@ -19,10 +19,7 @@ import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.openlmis.core.builder.ProgramProductBuilder;
-import org.openlmis.core.domain.Product;
-import org.openlmis.core.domain.Program;
-import org.openlmis.core.domain.ProgramProduct;
-import org.openlmis.core.domain.ProgramProductPrice;
+import org.openlmis.core.domain.*;
 import org.openlmis.core.exception.DataException;
 import org.openlmis.core.matchers.Matchers;
 import org.openlmis.core.repository.mapper.ProductMapper;
@@ -240,5 +237,31 @@ public class ProgramProductRepositoryTest {
 
     verify(programProductMapper).getByProgramIdAndFacilityTypeCode(10L, "warehouse");
     assertThat(programProducts, is(expectedProgramProducts));
+  }
+
+  @Test
+  public void shouldGetByProgramAfterUpdatedTime() {
+    Program program = new Program();
+    Date afterUpdatedTime = new Date();
+    FacilityType facilityType = new FacilityType();
+    programProductRepository.getByProgramAfterUpdatedTimeByFacilityType(program, afterUpdatedTime, facilityType);
+    verify(programProductMapper).getByProgramAfterUpdatedTimeFilterByFacilityType(program.getId(), afterUpdatedTime, facilityType.getId());
+  }
+
+  @Test
+  public void shouldGetLatestUpdatedProgramProducts() {
+    Date afterUpdatedTime = new Date();
+
+    programProductRepository.getLatestUpdatedProgramProduct(afterUpdatedTime);
+
+    verify(programProductMapper).getLatestUpdatedProgramProduct(afterUpdatedTime);
+  }
+
+  @Test
+  public void shouldGetActiveProgramCodesByProductCode() {
+
+    programProductRepository.getActiveProgramCodesByProductCode("07A06");
+
+    verify(programProductMapper).getActiveProgramCodesByProductCode("07A06");
   }
 }

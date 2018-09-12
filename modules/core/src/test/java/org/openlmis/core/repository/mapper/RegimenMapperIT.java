@@ -44,6 +44,9 @@ public class RegimenMapperIT {
   @Autowired
   RegimenMapper mapper;
 
+  @Autowired
+  RegimenCategoryMapper regimenCategoryMapper;
+
   Regimen regimen;
 
   @Before
@@ -84,6 +87,50 @@ public class RegimenMapperIT {
   }
 
   @Test
+  public void shouldGetRegimensByCategory(){
+    RegimenCategory adultRegimenCategory = new RegimenCategory("ADULTS", "Adults", 1);
+    adultRegimenCategory.setId(1l);
+    Regimen adultRegimen1 = make(a(defaultRegimen, with(regimenCode,"CODE_1"), with(displayOrder, 1), with(category, adultRegimenCategory)));
+    mapper.insert(adultRegimen1);
+    Regimen adultRegimen2 = make(a(defaultRegimen, with(regimenCode,"CODE_2"), with(displayOrder, 2), with(category, adultRegimenCategory)));
+    mapper.insert(adultRegimen2);
+
+    RegimenCategory paediatricsRegimenCategory = new RegimenCategory("PAEDIATRICS", "Paediatrics", 2);
+    paediatricsRegimenCategory.setId(2l);
+    Regimen paediatricsRegimen1 = make(a(defaultRegimen, with(regimenCode,"CODE_4"), with(displayOrder, 1), with(category, paediatricsRegimenCategory)));
+    mapper.insert(paediatricsRegimen1);
+    Regimen paediatricsRegimen2 = make(a(defaultRegimen, with(regimenCode,"CODE_3"), with(displayOrder, 2), with(category, paediatricsRegimenCategory)));
+    mapper.insert(paediatricsRegimen2);
+
+    List<Regimen> regimens = mapper.getRegimensByCategoryId(adultRegimenCategory.getId());
+
+    assertThat(regimens.size(), is(2));
+    assertThat(regimens.get(0).getCode(), is("CODE_1"));
+    assertThat(regimens.get(1).getCode(), is("CODE_2"));
+  }
+
+  @Test
+  public void shouldGetRegimensByCategoryAngName(){
+    RegimenCategory adultRegimenCategory = new RegimenCategory("ADULTS", "Adults", 1);
+    adultRegimenCategory.setId(1l);
+    Regimen adultRegimen1 = make(a(defaultRegimen, with(regimenCode,"CODE_1"), with(regimenName, "NAME_1"), with(displayOrder, 1), with(category, adultRegimenCategory)));
+    mapper.insert(adultRegimen1);
+    Regimen adultRegimen2 = make(a(defaultRegimen, with(regimenCode,"CODE_2"), with(regimenName, "NAME_2"), with(displayOrder, 2), with(category, adultRegimenCategory)));
+    mapper.insert(adultRegimen2);
+
+    RegimenCategory paediatricsRegimenCategory = new RegimenCategory("PAEDIATRICS", "Paediatrics", 2);
+    paediatricsRegimenCategory.setId(2l);
+    Regimen paediatricsRegimen1 = make(a(defaultRegimen, with(regimenCode,"CODE_4"), with(regimenName, "NAME_3"), with(displayOrder, 1), with(category, paediatricsRegimenCategory)));
+    mapper.insert(paediatricsRegimen1);
+    Regimen paediatricsRegimen2 = make(a(defaultRegimen, with(regimenCode,"CODE_3"), with(regimenName, "NAME_4"), with(displayOrder, 2), with(category, paediatricsRegimenCategory)));
+    mapper.insert(paediatricsRegimen2);
+
+    Regimen regimen = mapper.getRegimensByCategoryIdAndName(adultRegimenCategory.getId(), "NAME_1");
+
+    assertThat(regimen.getCode(), is(adultRegimen1.getCode()));
+  }
+
+  @Test
   public void shouldUpdateRegimen() throws Exception {
     mapper.insert(regimen);
     regimen.setName("Regimen");
@@ -113,5 +160,24 @@ public class RegimenMapperIT {
 
     assertThat(result.size(), is(0));
 
+  }
+
+  @Test
+  public void shouldListCustomRegimens() throws Exception {
+    Long programId1 = 1l;
+    Long programId2 = 2l;
+    Regimen adultRegimen1 = make(a(defaultRegimen, with(regimenCode,"CODE_1"), with(displayOrder, 1), with(programId, programId1), with(isCustom, true)));
+    mapper.insert(adultRegimen1);
+    Regimen adultRegimen2 = make(a(defaultRegimen, with(regimenCode,"CODE_2"), with(displayOrder, 2), with(programId, programId1), with(isCustom, false)));
+    mapper.insert(adultRegimen2);
+    Regimen adultRegimen3 = make(a(defaultRegimen, with(regimenCode,"CODE_3"), with(displayOrder, 2), with(programId, programId2), with(isCustom, true)));
+    mapper.insert(adultRegimen3);
+
+    List<Regimen> regimens = mapper.getRegimensByProgramAndIsCustom(programId1, true);
+    List<Regimen> allRegimens = mapper.getAllRegimens();
+
+    assertThat(allRegimens.size(), is(3));
+    assertThat(regimens.size(), is(1));
+    assertThat(regimens.get(0).getCode(), is("CODE_1"));
   }
 }

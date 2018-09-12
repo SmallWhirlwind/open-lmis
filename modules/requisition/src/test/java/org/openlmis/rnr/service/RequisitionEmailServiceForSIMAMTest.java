@@ -12,6 +12,7 @@ import org.mockito.runners.MockitoJUnitRunner;
 import org.openlmis.core.builder.ProgramBuilder;
 import org.openlmis.core.domain.User;
 import org.openlmis.core.service.ConfigurationSettingService;
+import org.openlmis.core.service.StaticReferenceDataService;
 import org.openlmis.db.categories.UnitTests;
 import org.openlmis.email.domain.EmailMessage;
 import org.openlmis.email.service.EmailService;
@@ -48,10 +49,16 @@ public class RequisitionEmailServiceForSIMAMTest {
   private EmailService emailService;
 
   @Mock
+  private PDFGenerator PDFGenerator;
+
+  @Mock
   ConfigurationSettingService settingService;
 
   @Mock
   private SingleListSheetExcelHandler singleListSheetExcelHandler;
+
+  @Mock
+  private StaticReferenceDataService staticReferenceDataService;
 
   private RequisitionEmailServiceForSIMAM requisitionEmailServiceForSIMAM = null;
 
@@ -68,7 +75,7 @@ public class RequisitionEmailServiceForSIMAMTest {
     initUsers();
     when(settingService.getConfigurationStringValue(anyString())).thenReturn("email content");
     requisitionEmailServiceForSIMAM =
-            new RequisitionEmailServiceForSIMAM(rnrMapperForSIMAM, emailService, settingService,singleListSheetExcelHandler);
+            new RequisitionEmailServiceForSIMAM(rnrMapperForSIMAM, emailService, settingService,singleListSheetExcelHandler, PDFGenerator, staticReferenceDataService, "pdfPath");
   }
 
   private void initRnrItems(String programCode) {
@@ -126,14 +133,14 @@ public class RequisitionEmailServiceForSIMAMTest {
   @Test
   public void shouldNotEmailWhenRequisitionStatusNotAuthorized() throws Exception {
     rnr.setStatus(RnrStatus.SUBMITTED);
-    requisitionEmailServiceForSIMAM.sendRequisitionEmailWithAttachment(rnr, users);
+    requisitionEmailServiceForSIMAM.queueRequisitionEmailWithAttachment(rnr, users);
     verify(emailService, never()).insertEmailAttachmentList(anyList());
   }
 
   @Test
   public void shouldNotEmailWhenUsersAreEmpty() throws Exception {
     rnr.setStatus(RnrStatus.AUTHORIZED);
-    requisitionEmailServiceForSIMAM.sendRequisitionEmailWithAttachment(rnr, new ArrayList<User>());
+    requisitionEmailServiceForSIMAM.queueRequisitionEmailWithAttachment(rnr, new ArrayList<User>());
     verify(emailService, never()).insertEmailAttachmentList(anyList());
   }
 
@@ -150,7 +157,7 @@ public class RequisitionEmailServiceForSIMAMTest {
     when(singleListSheetExcelHandler.readXssTemplateFile(anyString(), any(ExcelHandler.PathType.class))).thenReturn(workBook);
     when(singleListSheetExcelHandler.createXssFile(any(Workbook.class), anyString())).thenReturn("anything");
 
-    requisitionEmailServiceForSIMAM.sendRequisitionEmailWithAttachment(rnr, users);
+    requisitionEmailServiceForSIMAM.queueRequisitionEmailWithAttachment(rnr, users);
 
     verify(emailService).insertEmailAttachmentList(any(List.class));
     verify(emailService, times(2)).queueEmailMessage(any(EmailMessage.class));
@@ -167,7 +174,7 @@ public class RequisitionEmailServiceForSIMAMTest {
     workBook.createSheet();
     when(singleListSheetExcelHandler.readXssTemplateFile(anyString(), any(ExcelHandler.PathType.class))).thenReturn(workBook);
 
-    requisitionEmailServiceForSIMAM.sendRequisitionEmailWithAttachment(rnr, users);
+    requisitionEmailServiceForSIMAM.queueRequisitionEmailWithAttachment(rnr, users);
 
     assertEquals(SIMAM_PROGRAMS_MAP.get("ESS_MEDS"), dataList.get(0).get("program_code"));
   }
@@ -183,7 +190,7 @@ public class RequisitionEmailServiceForSIMAMTest {
     workBook.createSheet();
     when(singleListSheetExcelHandler.readXssTemplateFile(anyString(), any(ExcelHandler.PathType.class))).thenReturn(workBook);
 
-    requisitionEmailServiceForSIMAM.sendRequisitionEmailWithAttachment(rnr, users);
+    requisitionEmailServiceForSIMAM.queueRequisitionEmailWithAttachment(rnr, users);
 
     assertEquals(SIMAM_PROGRAMS_MAP.get("MMIA"), dataList.get(0).get("program_code"));
   }
@@ -200,7 +207,7 @@ public class RequisitionEmailServiceForSIMAMTest {
     workBook.createSheet();
     when(singleListSheetExcelHandler.readXssTemplateFile(TEMPLATE_IMPORT_RNR_XLSX,
         ExcelHandler.PathType.FILE)).thenReturn(workBook);
-    requisitionEmailServiceForSIMAM.sendRequisitionEmailWithAttachment(rnr, users);
+    requisitionEmailServiceForSIMAM.queueRequisitionEmailWithAttachment(rnr, users);
 
     verify(singleListSheetExcelHandler).readXssTemplateFile(TEMPLATE_IMPORT_REGIMEN_XLSX_EMPTY, ExcelHandler.PathType.FILE);
   }
@@ -221,7 +228,7 @@ public class RequisitionEmailServiceForSIMAMTest {
 
     when(singleListSheetExcelHandler.createXssFile(workBook, "Regimen_Requi" + getFileName() + ".xlsx")).thenReturn("expected file path");
 
-    requisitionEmailServiceForSIMAM.sendRequisitionEmailWithAttachment(rnr, users);
+    requisitionEmailServiceForSIMAM.queueRequisitionEmailWithAttachment(rnr, users);
 
     verify(singleListSheetExcelHandler).readXssTemplateFile(TEMPLATE_IMPORT_REGIMEN_XLSX, ExcelHandler.PathType.FILE);
   }

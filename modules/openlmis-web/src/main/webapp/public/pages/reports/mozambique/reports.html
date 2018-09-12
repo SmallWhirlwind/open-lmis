@@ -1,4 +1,5 @@
-<li class="has-children" ng-show="hasPermission('VIEW_REQUISITION_REPORT') || hasPermission('VIEW_STOCK_ON_HAND_REPORT')">
+<li class="has-children"
+    ng-show="hasPermission('VIEW_REQUISITION_REPORT') || hasPermission('VIEW_STOCK_ON_HAND_REPORT') || hasPermission('VIEW_TABLET_INFO_REPORT') || hasPermission('VIEW_STOCKOUT_REPORT')">
     <a id='report' href="javascript: void(0);" openlmis-message="menu.report.moz"></a>
 
     <div class="submenu">
@@ -9,13 +10,48 @@
             </li>
 
             <li ng-show="hasPermission('VIEW_STOCK_ON_HAND_REPORT')">
-                <a href="/public/pages/reports/mozambique/index.html#/single-product"
+                <a href="/public/pages/reports/mozambique/index.html#/stock-on-hand-single-product"
                    openlmis-message="menu.report.single.product.reports"></a>
             </li>
 
             <li ng-show="hasPermission('VIEW_STOCK_ON_HAND_REPORT')">
-                <a href="/public/pages/reports/mozambique/index.html#/all-products"
+                <a href="/public/pages/reports/mozambique/index.html#/stock-on-hand-all-products"
                    openlmis-message="menu.report.all.products.reports"></a>
+            </li>
+
+            <li ng-show="hasPermission('VIEW_TABLET_INFO_REPORT')">
+                <a href="/public/pages/reports/mozambique/index.html#/app-version"
+                   openlmis-message="menu.report.app.version.reports"></a>
+            </li>
+
+            <li ng-show="hasPermission('VIEW_STOCKOUT_REPORT') && isNewStockReportToggleOn">
+                <a href="/public/pages/reports/mozambique/index.html#/stock-out-all-products"
+                   openlmis-message="menu.report.stockout.all.reports"></a>
+            </li>
+
+            <li ng-show="hasPermission('VIEW_STOCKOUT_REPORT') && isNewStockReportToggleOn">
+                <a href="/public/pages/reports/mozambique/index.html#/stock-out-single-product"
+                   openlmis-message="menu.report.stockout.single.reports"></a>
+            </li>
+
+            <li ng-show="hasPermission('VIEW_EXPIRY_DATES_REPORT') && isExpiryDatesToggleOn">
+                <a href="/public/pages/reports/mozambique/index.html#/expiry-dates"
+                   openlmis-message="menu.report.expiry.dates"></a>
+            </li>
+
+            <li ng-show="hasPermission('VIEW_TRACER_DRUGS_REPORT') && isTracerDrugsReportToggleOn">
+                <a href="/public/pages/reports/mozambique/index.html#/tracer-drugs"
+                   openlmis-message="menu.report.tracer.drugs"></a>
+            </li>
+
+            <li ng-show="hasPermission('VIEW_CONSUMPTION_MOVEMENTS_REPORT') && isConsumptionMovementsReportOn">
+                <a href="/public/pages/reports/mozambique/index.html#/consumption"
+                   openlmis-message="menu.report.consumption.movements"></a>
+            </li>
+
+            <li ng-show="hasPermission('VIEW_ADJUSTMENT_OCCURRENCES_REPORT') && isAdjustmentOccurrencesReportOn">
+                <a href="/public/pages/reports/mozambique/index.html#/adjustment"
+                   openlmis-message="menu.report.adjustment.occurrences"></a>
             </li>
         </ul>
     </div>

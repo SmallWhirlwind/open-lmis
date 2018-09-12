@@ -59,6 +59,12 @@ public class RegimenRepository {
     }
   }
 
+  public void save(Regimen regimen, Long userId) {
+      regimen.setModifiedBy(userId);
+      regimen.setCreatedBy(userId);
+      mapper.insert(regimen);
+  }
+
   public List<Regimen> getAllRegimens(){
        return mapper.getAllRegimens();
   }
@@ -79,4 +85,21 @@ public class RegimenRepository {
       return regimenProductCombinationMapper.getAll();
   }
 
+  public List<Regimen> getRegimensByCategory(RegimenCategory category) {
+    return mapper.getRegimensByCategoryId(category.getId());
+  }
+
+  public RegimenCategory getRegimenCategoryByName(String name) {
+    return regimenCategoryMapper.getByName(name);
+  }
+
+  public Regimen getRegimensByCategoryIdAndName(Long categoryId, String code) {
+
+    return mapper.getRegimensByCategoryIdAndName(categoryId, code);
+  }
+
+  public List<Regimen> getRegimensByProgramAndIsCustom(Long programId, boolean isCustom) {
+
+    return mapper.getRegimensByProgramAndIsCustom(programId, isCustom);
+  }
 }

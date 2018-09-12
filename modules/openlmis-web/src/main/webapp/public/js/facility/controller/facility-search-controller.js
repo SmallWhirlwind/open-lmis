@@ -15,12 +15,14 @@ function FacilitySearchController($scope, Facility, $location, navigateBackServi
     {value: "geographicZone", name: "option.value.geo.zone"}
   ];
 
-  $scope.showResults = false;
+  $scope.showCloseButton = false;
   $scope.currentPage = 1;
+  $scope.searchedQuery = '%';
   $scope.selectedSearchOption = navigateBackService.selectedSearchOption || $scope.searchOptions[0];
 
   $scope.selectSearchType = function (searchOption) {
     $scope.selectedSearchOption = searchOption;
+    $scope.loadFacilities(1, $scope.searchedQuery);
   };
 
   $scope.$on('$viewContentLoaded', function () {
@@ -46,12 +48,16 @@ function FacilitySearchController($scope, Facility, $location, navigateBackServi
   function getFacilities(page, query) {
     query = query.trim();
     $scope.searchedQuery = query;
-    Facility.get({"searchParam": $scope.searchedQuery, "columnName": $scope.selectedSearchOption.value, "page": page}, function (data) {
+    Facility.getFacilityById().get({"searchParam": $scope.searchedQuery, "columnName": $scope.selectedSearchOption.value, "page": page}, function (data) {
       $scope.facilityList = data.facilities;
       $scope.pagination = data.pagination;
       $scope.totalItems = $scope.pagination.totalRecords;
       $scope.currentPage = $scope.pagination.page;
-      $scope.showResults = true;
+      if($scope.searchedQuery === '%'){
+        $scope.showCloseButton = false;
+      }else {
+        $scope.showCloseButton = true;
+      }
     }, {});
   }
 
@@ -65,7 +71,10 @@ function FacilitySearchController($scope, Facility, $location, navigateBackServi
     $scope.query = "";
     $scope.totalItems = 0;
     $scope.facilityList = [];
-    $scope.showResults = false;
+    $scope.showCloseButton = false;
     angular.element("#searchFacility").focus();
+    $scope.searchedQuery= "%";
+    $scope.currentPage = 1;
+    $scope.loadFacilities($scope.currentPage, $scope.searchedQuery);
   };
 }

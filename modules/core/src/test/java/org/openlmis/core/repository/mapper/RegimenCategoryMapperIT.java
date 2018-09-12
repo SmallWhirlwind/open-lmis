@@ -71,6 +71,11 @@ public class RegimenCategoryMapperIT {
     assertThat(adultCategory.getCode(), is("ADULTS"));
   }
 
+  @Test
+  public void shouldGetRegimenCategoryByName() {
+    RegimenCategory adultCategory = regimenCategoryMapper.getByName("Adults");
+    assertThat(adultCategory.getCode(), is("ADULTS"));
+  }
 
   @Test
   public void shouldInsertAndUpdateWithCaseInsensitiveCode() {

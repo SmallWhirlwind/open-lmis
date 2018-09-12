@@ -40,7 +40,7 @@ import static org.springframework.web.bind.annotation.RequestMethod.*;
 
 @Controller
 @NoArgsConstructor
-@Api(value="Requisitions", description = "Submit Requisitions", position = 5)
+@Api(value = "Requisitions", description = "Submit Requisitions", position = 5)
 public class RestRequisitionController extends BaseController {
 
   public static final String RNR = "requisitionId";
@@ -57,7 +57,11 @@ public class RestRequisitionController extends BaseController {
     } catch (DataException e) {
       return error(e.getOpenLmisMessage(), BAD_REQUEST);
     }
-    return response(RNR, requisition.getId(), CREATED);
+    if (requisition != null) {
+      restRequisitionService.notifySubmittedEvent(requisition);
+      return response(RNR, requisition.getId(), CREATED);
+    }
+    return response(RNR, 0L, OK);
   }
 
   @RequestMapping(value = "/rest-api/sdp-requisitions", method = POST, headers = ACCEPT_JSON)
@@ -68,7 +72,11 @@ public class RestRequisitionController extends BaseController {
     } catch (DataException e) {
       return error(e.getOpenLmisMessage(), BAD_REQUEST);
     }
-    return response(RNR, requisition.getId(), CREATED);
+
+    if (requisition != null) {
+      return response(RNR, requisition.getId(), CREATED);
+    }
+    return response(RNR, 0L, OK);
   }
 
   @RequestMapping(value = "/rest-api/requisitions/{requisitionId}/approve", method = PUT, headers = ACCEPT_JSON)
@@ -91,8 +99,8 @@ public class RestRequisitionController extends BaseController {
     }
   }
 
-  @RequestMapping(value="/rest-api/requisitions", method = GET, headers = ACCEPT_JSON)
-  public ResponseEntity<RestResponse> getRequisitionsByFacility(@RequestParam(value="facilityCode") String facilityCode) {
+  @RequestMapping(value = "/rest-api/requisitions", method = GET, headers = ACCEPT_JSON)
+  public ResponseEntity<RestResponse> getRequisitionsByFacility(@RequestParam(value = "facilityCode") String facilityCode) {
     try {
       return response("requisitions", restRequisitionService.getRequisitionsByFacility(facilityCode), OK);
     } catch (DataException e) {

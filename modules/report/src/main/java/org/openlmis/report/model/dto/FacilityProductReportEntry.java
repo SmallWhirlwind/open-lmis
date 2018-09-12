@@ -13,7 +13,10 @@ import org.openlmis.stockmanagement.domain.StockCard;
 import org.openlmis.stockmanagement.domain.StockCardEntry;
 import org.openlmis.stockmanagement.domain.StockCardEntryKV;
 
-import java.util.*;
+import java.util.Calendar;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.List;
 
 import static com.google.common.collect.FluentIterable.from;
 import static com.google.common.collect.Lists.newArrayList;
@@ -23,10 +26,12 @@ import static com.google.common.collect.Lists.newArrayList;
 public class FacilityProductReportEntry {
     private String productName;
     private String facilityName;
+    private String facilityCode;
     private long productQuantity;
     private Date soonestExpiryDate;
     private Date lastSyncDate;
     private String code;
+    private Float cmm;
 
     public static final String EXPIRATION_DATES = "expirationdates";
 
@@ -41,19 +46,20 @@ public class FacilityProductReportEntry {
 
         assignSoonestExpirationDate(stockCardEntryList);
 
+        this.lastSyncDate = stockCard.getModifiedDate();
         this.code = stockCard.getProduct().getCode();
     }
 
     private String getExpirationDateFromStockCardEntry(StockCardEntry entry){
-        Optional<StockCardEntryKV> stockCardEntryKVOptional = from(entry.getKeyValues()).firstMatch(new Predicate<StockCardEntryKV>() {
+        Optional<StockCardEntryKV> stockCardEntryKVOptional = from(entry.getExtensions()).firstMatch(new Predicate<StockCardEntryKV>() {
             @Override
             public boolean apply(StockCardEntryKV input) {
-                return EXPIRATION_DATES.equalsIgnoreCase(input.getKeyColumn());
+                return EXPIRATION_DATES.equalsIgnoreCase(input.getKey());
             }
         });
 
-        if (stockCardEntryKVOptional.isPresent()){
-            return stockCardEntryKVOptional.get().getValueColumn();
+        if (stockCardEntryKVOptional.isPresent()) {
+            return stockCardEntryKVOptional.get().getValue();
         }
         return StringUtils.EMPTY;
     }
@@ -78,23 +84,23 @@ public class FacilityProductReportEntry {
 
     private ImmutableList<Date> sortExpirationDate(String[] dateStrings) {
         return from(newArrayList(dateStrings)).transform(new Function<String, Date>() {
-                    @Override
-                    public Date apply(String input) {
-                        return DateUtil.parseDate(input,DateUtil.FORMAT_DATE_TIME_DAY_MONTH_YEAR );
-                    }
-                }).toSortedList(new Comparator<Date>() {
-                    @Override
-                    public int compare(Date o1, Date o2) {
-                        return o2.compareTo(o1);
-                    }
-                });
+            @Override
+            public Date apply(String input) {
+                return DateUtil.parseDate(input, DateUtil.FORMAT_DATE_TIME_DAY_MONTH_YEAR);
+            }
+        }).toSortedList(new Comparator<Date>() {
+            @Override
+            public int compare(Date o1, Date o2) {
+                return o2.compareTo(o1);
+            }
+        });
     }
 
     private List<StockCardEntry> filterEntryByDate(final StockCard stockCard, final Date date) {
         return from(stockCard.getEntries()).filter(new Predicate<StockCardEntry>() {
             @Override
             public boolean apply(StockCardEntry input) {
-                return !DateUtils.truncate(input.getCreatedDate(), Calendar.DATE).after(date);
+                return !DateUtils.truncate(input.getOccurred(), Calendar.DATE).after(date);
             }
         }).toList();
     }

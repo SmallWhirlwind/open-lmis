@@ -8,11 +8,39 @@
  * You should have received a copy of the GNU Affero General Public License along with this program.  If not, see http://www.gnu.org/licenses.  For additional information contact info@OpenLMIS.org. 
  */
 
-function NavigationController($scope, ConfigSettingsByKey, localStorageService, Locales, $location, $window) {
+function NavigationController($scope, ConfigSettingsByKey, localStorageService, Locales, $location, $window, FeatureToggleService, AppPropertiesService) {
 
   ConfigSettingsByKey.get({key: 'LOGIN_SUCCESS_DEFAULT_LANDING_PAGE'}, function (data){
     $scope.homePage =  data.settings.value;
   });
+
+  var viewPropertiesKey = {key: "app.environment"};
+  AppPropertiesService.get(viewPropertiesKey, function (result) {
+    $scope.env=result.key;
+  });
+
+   $scope.loadToggle = function () {
+    var updateProductToggleKey = {key: 'update.product.view'};
+    FeatureToggleService.get(updateProductToggleKey, function (result) {
+      $scope.isUpdateProductsToggleOn = result.key;
+    });
+    var stockOutReportToggleKey = {key: 'stock.out.report'};
+    FeatureToggleService.get(stockOutReportToggleKey, function (result) {
+      $scope.isNewStockReportToggleOn = result.key;
+    });
+    FeatureToggleService.get({key: 'expiry.dates.report'}, function (result) {
+      $scope.isExpiryDatesToggleOn = result.key;
+    });
+    FeatureToggleService.get({key: 'tracer.drugs.report'}, function (result) {
+      $scope.isTracerDrugsReportToggleOn = result.key;
+    });
+    FeatureToggleService.get({key: 'consumption.movements.report'}, function (result) {
+     $scope.isConsumptionMovementsReportOn = result.key;
+    });
+    FeatureToggleService.get({key: 'adjustment.occurrences.report'}, function (result) {
+     $scope.isAdjustmentOccurrencesReportOn = result.key;
+    });
+   }();
 
   $scope.loadRights = function () {
     $scope.rights = localStorageService.get(localStorageKeys.RIGHT);
@@ -33,6 +61,10 @@ function NavigationController($scope, ConfigSettingsByKey, localStorageService, 
       return rightTypes.indexOf('REPORTING') > -1;
     }
     return false;
+  };
+
+  $scope.homeLinkClicked=function(){
+    $window.location.href= $scope.homePage;
   };
 
   $scope.hasPermission = function (permission) {

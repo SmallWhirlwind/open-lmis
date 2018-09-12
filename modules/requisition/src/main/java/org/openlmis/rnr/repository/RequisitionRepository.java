@@ -14,6 +14,7 @@ import org.openlmis.core.domain.*;
 import org.openlmis.core.exception.DataException;
 import org.openlmis.core.repository.helper.CommaSeparator;
 import org.openlmis.core.repository.mapper.SignatureMapper;
+import org.openlmis.core.utils.DateUtil;
 import org.openlmis.equipment.domain.EquipmentInventoryStatus;
 import org.openlmis.equipment.repository.mapper.EquipmentInventoryStatusMapper;
 import org.openlmis.rnr.domain.*;
@@ -22,6 +23,7 @@ import org.openlmis.rnr.repository.mapper.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Repository;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -66,7 +68,6 @@ public class RequisitionRepository {
 
   @Autowired
   private SignatureMapper signatureMapper;
-
 
   public void insert(Rnr requisition) {
     requisition.setStatus(INITIATED);
@@ -143,7 +144,11 @@ public class RequisitionRepository {
 
   private void updateRegimenLineItems(Rnr rnr) {
     for (RegimenLineItem regimenLineItem : rnr.getRegimenLineItems()) {
-      regimenLineItemMapper.update(regimenLineItem);
+      if (regimenLineItem.getId() == null) {
+        regimenLineItemMapper.insert(regimenLineItem);
+      } else {
+        regimenLineItemMapper.update(regimenLineItem);
+      }
     }
   }
 
@@ -313,5 +318,16 @@ public class RequisitionRepository {
       signatureMapper.insertSignature(signature);
       requisitionMapper.insertRnrSignature(rnr, signature);
     }
+  }
+
+  public void saveClientPeriod(Rnr rnr) {
+    requisitionMapper.saveClientPeriod(rnr);
+  }
+
+  public List<Rnr> findNormalRnrByPeriodAndProgram(Date beginDate, Date endDate, Long programId, Long facilityId) {
+    if (beginDate == null || endDate == null) {
+      return new ArrayList<>();
+    }
+    return requisitionMapper.findNormalRnrByPeriodAndProgram(DateUtil.getFormattedDate(beginDate, DateUtil.FORMAT_YEAR_MONTH), DateUtil.getFormattedDate(endDate, DateUtil.FORMAT_YEAR_MONTH), programId, facilityId);
   }
 }

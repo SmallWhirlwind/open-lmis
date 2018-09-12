@@ -10,11 +10,11 @@
 
 package org.openlmis.core.domain;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import org.openlmis.upload.Importable;
 import org.openlmis.upload.annotation.ImportField;
 
@@ -51,6 +51,10 @@ public class Program extends BaseModel implements Importable {
 
   @ImportField(name="Push", mandatory=true, type="boolean")
   private Boolean push;
+
+  private Boolean isSupportEmergency;
+
+  private Program parent;
 
   private Boolean isEquipmentConfigured;
 

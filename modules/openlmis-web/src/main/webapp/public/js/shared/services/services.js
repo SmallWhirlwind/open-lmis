@@ -30,13 +30,20 @@ services.factory('ProgramRnRColumnList', function ($resource) {
 });
 
 services.factory('Facility', function ($resource) {
-  var resource = $resource('/facilities/:id.json', {id: '@id'}, update);
+  return {
+    getFacilityById: function () {
+      var resource = $resource('/facilities/:id.json', {id: '@id'}, update);
 
-  resource.restore = function (pathParams, success, error) {
-    $resource('/facilities/:id/restore.json', {}, update).update(pathParams, {}, success, error);
+      resource.restore = function (pathParams, success, error) {
+        $resource('/facilities/:id/restore.json', {}, update).update(pathParams, {}, success, error);
+      };
+
+      return resource;
+    },
+    getFacilityByCode: function () {
+        return $resource('/facilities/code/:code.json', {code: '@code'}, {});
+    }
   };
-
-  return resource;
 });
 
 services.factory("Facilities", function ($resource) {
@@ -455,4 +462,12 @@ services.factory('ProgramsToViewVaccineOrderRequisitions', function ($resource) 
 
 services.factory('VaccineOrderRequisitionsForViewing', function ($resource) {
   return $resource('/vaccine/orderRequisition/search.json', {}, {});
+});
+
+services.factory('FeatureToggleService', function ($q, $timeout, $resource) {
+  return $resource('/reference-data/toggle/:key.json', {key: '@key'});
+});
+
+services.factory('AppPropertiesService', function ($q, $timeout, $resource) {
+  return $resource('/reference-data/:key.json', {key: '@key'});
 });

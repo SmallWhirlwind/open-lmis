@@ -24,8 +24,10 @@ import org.openlmis.core.exception.DataException;
 import org.openlmis.core.repository.SupervisoryNodeRepository;
 import org.openlmis.core.repository.helper.CommaSeparator;
 import org.openlmis.core.repository.mapper.SignatureMapper;
+import org.openlmis.core.utils.DateUtil;
 import org.openlmis.db.categories.UnitTests;
 import org.openlmis.rnr.builder.PatientQuantificationsBuilder;
+import org.openlmis.rnr.builder.RegimenLineItemBuilder;
 import org.openlmis.rnr.builder.RnrLineItemBuilder;
 import org.openlmis.rnr.domain.*;
 import org.openlmis.rnr.repository.mapper.*;
@@ -33,6 +35,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 
 import static com.natpryce.makeiteasy.MakeItEasy.*;
@@ -45,6 +48,7 @@ import static org.mockito.Mockito.*;
 import static org.openlmis.core.domain.RightName.CONVERT_TO_ORDER;
 import static org.openlmis.rnr.builder.RegimenLineItemBuilder.code;
 import static org.openlmis.rnr.builder.RegimenLineItemBuilder.defaultRegimenLineItem;
+import static org.openlmis.rnr.builder.RegimenLineItemBuilder.name;
 import static org.openlmis.rnr.domain.RnrStatus.INITIATED;
 import static org.openlmis.rnr.domain.RnrStatus.IN_APPROVAL;
 import static org.openlmis.rnr.service.RequisitionService.SEARCH_ALL;
@@ -170,6 +174,15 @@ public class RequisitionRepositoryTest {
     verify(lossesAndAdjustmentsMapper).insert(rnrLineItem2, lossAndAdjustmentForLineItem);
     verify(rnrLineItemMapper).update(rnrLineItem1);
     verify(rnrLineItemMapper).update(rnrLineItem2);
+  }
+
+  @Test
+  public void shouldInsertRegimenLineItemWhenThereIsNoRegimenLineItem() throws Exception {
+    RegimenLineItem newRegimenLineItem = make(a(RegimenLineItemBuilder.defaultRegimenLineItem, with(code, "NEW"), with(name, "New")));
+    rnr.getRegimenLineItems().add(newRegimenLineItem);
+    requisitionRepository.update(rnr);
+
+    verify(regimenLineItemMapper).insert(newRegimenLineItem);
   }
 
   @Test
@@ -375,7 +388,9 @@ public class RequisitionRepositoryTest {
     rnr.setId(rnrId);
 
     RegimenLineItem regimenLineItem1 = make(a(defaultRegimenLineItem, with(code, "regimen1")));
+    regimenLineItem1.setId(1L);
     RegimenLineItem regimenLineItem2 = make(a(defaultRegimenLineItem, with(code, "regimen2")));
+    regimenLineItem2.setId(2L);
     List<RegimenLineItem> listOfRegimenLineItems = Arrays.asList(regimenLineItem1, regimenLineItem2);
 
     rnr.setRegimenLineItems(listOfRegimenLineItems);
@@ -465,6 +480,13 @@ public class RequisitionRepositoryTest {
   }
 
   @Test
+  public void shouldSaveClientPeriod() throws Exception {
+    Rnr rnr = new Rnr();
+    requisitionRepository.saveClientPeriod(rnr);
+    verify(requisitionMapper).saveClientPeriod(rnr);
+  }
+
+  @Test
   public void shouldGetRequisitionsWithLineItemsByFacility() {
     Facility facility = new Facility();
     requisitionRepository.getRequisitionDetailsByFacility(facility);
@@ -483,5 +505,20 @@ public class RequisitionRepositoryTest {
     verify(signatureMapper).insertSignature(rnr.getRnrSignatures().get(1));
     verify(requisitionMapper).insertRnrSignature(rnr, submitterSignature);
     verify(requisitionMapper).insertRnrSignature(rnr, approverSignature);
+  }
+
+  @Test
+  public void shouldReturnRnrsWithDateMonthsAndProgram() {
+    Date begindDate = DateUtil.parseDate("2020-10-20", DateUtil.FORMAT_DATE);
+    Date endDate = DateUtil.parseDate("2020-11-20", DateUtil.FORMAT_DATE);
+    List<Rnr> rnrs = asList(new Rnr());
+    when(requisitionMapper.findNormalRnrByPeriodAndProgram("2020-10", "2020-11", 1L, 0L)).thenReturn(rnrs);
+
+    assertEquals(rnrs, requisitionRepository.findNormalRnrByPeriodAndProgram(begindDate, endDate, 1L, 0L));
+  }
+
+  @Test
+  public void shouldReturnEmptyWhenDatesAreNull() {
+    assertEquals(0, requisitionRepository.findNormalRnrByPeriodAndProgram(null, null, 1L, null).size());
   }
 }

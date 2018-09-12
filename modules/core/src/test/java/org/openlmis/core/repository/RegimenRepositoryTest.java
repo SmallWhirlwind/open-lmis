@@ -91,4 +91,14 @@ public class RegimenRepositoryTest {
     assertThat(regimens, is(expectedRegimens));
     verify(mapper).getByProgram(programId);
   }
+
+  @Test
+  public void shouldSaveRegime() throws Exception {
+    final Regimen regimen = new Regimen();
+
+    repository.save(regimen, 1L);
+
+    assertThat(regimen.getCreatedBy(), is(1L));
+    verify(mapper).insert(regimen);
+  }
 }

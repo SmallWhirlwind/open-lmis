@@ -1,0 +1,20 @@
+<div class="report-selection province-choose">
+
+    <label class="labels" openlmis-message="label.province"></label>
+
+    <div class="form-fields">
+        <select ui-select2
+                ng-change="selectedProvince()"
+                ng-model="reportParams.provinceId"
+
+                style="width:160px;"
+                class="large-input"
+                name="provinces"
+                id="provinceDropDown">
+            <option ng-repeat="option in provinces"
+                    value="{{option.id}}">
+                {{option.name}}
+            </option>
+        </select>
+    </div>
+</div>

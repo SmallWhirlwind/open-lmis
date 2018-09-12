@@ -17,18 +17,18 @@ import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.Predicate;
 import org.apache.commons.collections.Transformer;
 import org.apache.log4j.Logger;
-import org.apache.lucene.util.CollectionUtil;
+import org.joda.time.DateTime;
 import org.openlmis.core.domain.*;
 import org.openlmis.core.exception.DataException;
-import org.openlmis.core.service.FacilityApprovedProductService;
-import org.openlmis.core.service.FacilityService;
-import org.openlmis.core.service.ProcessingPeriodService;
-import org.openlmis.core.service.ProgramService;
+import org.openlmis.core.repository.SyncUpHashRepository;
+import org.openlmis.core.service.*;
 import org.openlmis.order.service.OrderService;
+import org.openlmis.restapi.domain.RegimenLineItemForRest;
 import org.openlmis.restapi.domain.ReplenishmentDTO;
 import org.openlmis.restapi.domain.Report;
 import org.openlmis.rnr.domain.*;
 import org.openlmis.rnr.search.criteria.RequisitionSearchCriteria;
+import org.openlmis.rnr.service.RegimenColumnService;
 import org.openlmis.rnr.service.RequisitionService;
 import org.openlmis.rnr.service.RnrTemplateService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -64,23 +64,44 @@ public class RestRequisitionService {
   @Autowired
   private ProgramService programService;
   @Autowired
+  private ProgramSupportedService programSupportedService;
+  @Autowired
   private RnrTemplateService rnrTemplateService;
   @Autowired
   private RestRequisitionCalculator restRequisitionCalculator;
   @Autowired
   private ProcessingPeriodService processingPeriodService;
   @Autowired
+  private StaticReferenceDataService staticReferenceDataService;
+  @Autowired
   private FacilityApprovedProductService facilityApprovedProductService;
   private List<FacilityTypeApprovedProduct> nonFullSupplyFacilityApprovedProductByFacilityAndProgram;
+  @Autowired
+  private SyncUpHashRepository syncUpHashRepository;
+  @Autowired
+  private RegimenService regimenService;
+  @Autowired
+  private RegimenColumnService regimenColumnService;
 
   @Transactional
   public Rnr submitReport(Report report, Long userId) {
+    if (syncUpHashRepository.hashExists(report.getSyncUpHash())) {
+      return null;
+    }
+
     report.validate();
 
     Facility reportingFacility = facilityService.getOperativeFacilityByCode(report.getAgentCode());
     Program reportingProgram = programService.getValidatedProgramByCode(report.getProgramCode());
 
-    restRequisitionCalculator.validatePeriod(reportingFacility, reportingProgram);
+    if (staticReferenceDataService.getBoolean("toggle.skip.initial.requisition.validation")) {
+      Rnr lastRegularRequisition = requisitionService.getLastRegularRequisition(reportingFacility, reportingProgram);
+      if (lastRegularRequisition == null) {
+        programSupportedService.updateProgramSupportedStartDate(reportingFacility.getId(), reportingProgram.getId(), getDateOf21(report.getActualPeriodStartDate()));
+      }
+    }
+
+    restRequisitionCalculator.validatePeriod(reportingFacility, reportingProgram, report.getActualPeriodStartDate(), report.getActualPeriodEndDate());
 
     Rnr rnr = requisitionService.initiate(reportingFacility, reportingProgram, userId, EMERGENCY, null);
 
@@ -91,7 +112,7 @@ public class RestRequisitionService {
     if (reportingFacility.getVirtualFacility())
       restRequisitionCalculator.setDefaultValues(rnr);
 
-    copyRegimens(rnr, report);
+    copyRegimens(rnr, report, userId);
 
     requisitionService.save(rnr);
 
@@ -102,7 +123,15 @@ public class RestRequisitionService {
 
     rnr = requisitionService.submit(rnr);
 
-    return requisitionService.authorize(rnr);
+    Rnr authorize = requisitionService.authorize(rnr);
+
+    syncUpHashRepository.save(report.getSyncUpHash());
+
+    return authorize;
+  }
+
+  public void notifySubmittedEvent(Rnr rnr){
+    requisitionService.logStatusChangeAndNotify(rnr,true,null);
   }
 
   private void updateClientFields(Report report, Rnr rnr) {
@@ -113,10 +142,20 @@ public class RestRequisitionService {
     rnr.setClientSubmittedNotes(clientSubmittedNotes);
 
     requisitionService.updateClientFields(rnr);
+
+    if(staticReferenceDataService.getBoolean("toggle.sync.period.date.for.rnr")){
+        rnr.setActualPeriodStartDate(report.getActualPeriodStartDate());
+        rnr.setActualPeriodEndDate(report.getActualPeriodEndDate());
+        requisitionService.saveClientPeriod(rnr);
+    }
   }
 
   @Transactional
   public Rnr submitSdpReport(Report report, Long userId) {
+    if (syncUpHashRepository.hashExists(report.getSyncUpHash())) {
+      return null;
+    }
+
     report.validate();
 
     Facility reportingFacility = facilityService.getOperativeFacilityByCode(report.getAgentCode());
@@ -155,7 +194,9 @@ public class RestRequisitionService {
     // differentiate between full supply and non full supply products
     while(iterator.hasNext()){
       final RnrLineItem lineItem = iterator.next();
-      if(lineItem.getFullSupply()){
+
+      //default to full supply products
+      if(lineItem.getFullSupply() == null || lineItem.getFullSupply()){
         fullSupplyProducts.add(lineItem);
       }else{
 
@@ -170,13 +211,23 @@ public class RestRequisitionService {
     markSkippedLineItems(rnr, report);
 
 
-    copyRegimens(rnr, report);
+    copyRegimens(rnr, report, userId);
     // if you have come this far, then do it, it is your day. make the submission.
     // i cannot believe we do all of these three at the same time.
     // but then this is what zambia specifically asked.
     requisitionService.save(rnr);
+
+    updateClientFields(report, rnr);
+    insertPatientQuantificationLineItems(report, rnr);
+
+    insertRnrSignatures(report, rnr, userId);
+
     rnr = requisitionService.submit(rnr);
-    return requisitionService.authorize(rnr);
+    rnr = requisitionService.authorize(rnr);
+
+    syncUpHashRepository.save(report.getSyncUpHash());
+
+    return rnr;
   }
 
   private void setNonFullSupplyCreatorFields(final RnrLineItem lineItem) {
@@ -201,12 +252,38 @@ public class RestRequisitionService {
   }
 
 
-  private void copyRegimens(Rnr rnr, Report report) {
+  private void copyRegimens(Rnr rnr, Report report, Long userId) {
     if (report.getRegimens() != null) {
-      for (RegimenLineItem regimenLineItem : report.getRegimens()) {
+      for (RegimenLineItemForRest regimenLineItemForRest : report.getRegimens()) {
+        RegimenLineItem regimenLineItem;
+        if (staticReferenceDataService.getBoolean("toggle.mmia.custom.regimen")) {
+          regimenLineItem = new RegimenLineItem(regimenLineItemForRest.getCode(), regimenLineItemForRest.getName(), regimenLineItemForRest.getPatientsOnTreatment(), regimenService.queryRegimenCategoryByName(regimenLineItemForRest.getCategoryName()));
+        } else {
+          regimenLineItem = new RegimenLineItem();
+          regimenLineItem.setCode(regimenLineItemForRest.getCode());
+          regimenLineItem.setName(regimenLineItemForRest.getName());
+          regimenLineItem.setPatientsOnTreatment(regimenLineItemForRest.getPatientsOnTreatment());
+        }
+
         RegimenLineItem correspondingRegimenLineItem = rnr.findCorrespondingRegimenLineItem(regimenLineItem);
-        if (correspondingRegimenLineItem == null)
-          throw new DataException("error.invalid.regimen");
+        if (correspondingRegimenLineItem == null) {
+          regimenLineItem.setRnrId(rnr.getId());
+
+          if(staticReferenceDataService.getBoolean("toggle.mmia.custom.regimen")) {
+            regimenLineItem.setCode(String.format("%03d", regimenService.listAll().size() + 1));
+
+            rnr.getRegimenLineItems().add(regimenLineItem);
+
+            if (regimenService.getRegimensByCategoryIdAndName(regimenLineItem.getCategory().getId(), regimenLineItem.getName()) == null) {
+              Regimen regimen = new Regimen(regimenLineItem.getName(), regimenLineItem.getCode(), rnr.getProgram().getId(), true, regimenLineItem.getCategory(), regimenService.getRegimensByCategory(regimenLineItem.getCategory()).size(), true);
+              regimenService.save(regimen, userId);
+            }
+
+            correspondingRegimenLineItem = regimenLineItem;
+          } else {
+            throw new DataException("error.invalid.regimen");
+          }
+        }
         correspondingRegimenLineItem.populate(regimenLineItem);
       }
     }
@@ -336,5 +413,11 @@ public class RestRequisitionService {
         return Report.prepareForREST(input);
       }
     }).toList();
+  }
+
+  private Date getDateOf21(Date date) {
+    final int DAY_OF_PERIOD_START = 21;
+    DateTime dateTime = new DateTime(date);
+    return new DateTime(dateTime.getYear(), dateTime.getMonthOfYear(), DAY_OF_PERIOD_START,0 , 0).toDate();
   }
 }

@@ -10,9 +10,11 @@
 
 package org.openlmis.stockmanagement.service;
 
+import com.google.common.base.Predicate;
+import com.google.common.collect.FluentIterable;
 import lombok.NoArgsConstructor;
 import org.openlmis.core.repository.ProductRepository;
-import org.openlmis.core.service.*;
+import org.openlmis.core.service.FacilityService;
 import org.openlmis.stockmanagement.domain.Lot;
 import org.openlmis.stockmanagement.domain.LotOnHand;
 import org.openlmis.stockmanagement.domain.StockCard;
@@ -23,7 +25,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.*;
+import java.util.Date;
+import java.util.List;
+import java.util.Objects;
 
 
 /**
@@ -104,6 +108,10 @@ public class StockCardService {
     return repository.getStockCards(facilityId);
   }
 
+  public List<StockCard> queryStockCardByOccurred(Long facilityId, Date startTime, Date endTime) {
+    return repository.queryStockCardByOccurred(facilityId, startTime, endTime);
+  }
+
   @Transactional
   public void addStockCardEntry(StockCardEntry entry) {
     StockCard card = entry.getStockCard();
@@ -122,5 +130,24 @@ public class StockCardService {
   @Transactional
   public void addStockCardEntries(List<StockCardEntry> entries) {
     for(StockCardEntry entry : entries) addStockCardEntry(entry);
+  }
+
+  public void updateAllStockCardSyncTimeForFacilityToNow(long facilityId){
+    repository.updateAllStockCardSyncTimeForFacility(facilityId);
+  }
+
+  public void updateStockCardSyncTimeToNow(long facilityId, final List<String> stockCardProductCodeList) {
+    for (StockCard stockCard : getStockCardsNotInList(facilityId, stockCardProductCodeList)) {
+      repository.updateStockCardSyncTimeToNow(facilityId, stockCard.getProduct().getCode());
+    }
+  }
+
+  private List<StockCard> getStockCardsNotInList(long facilityId, final List<String> stockCardProductCodeList) {
+    return FluentIterable.from(repository.getStockCards(facilityId)).filter(new Predicate<StockCard>() {
+        @Override
+        public boolean apply(StockCard input) {
+          return !stockCardProductCodeList.contains(input.getProduct().getCode());
+        }
+      }).toList();
   }
 }

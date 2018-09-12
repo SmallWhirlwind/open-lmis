@@ -1,0 +1,94 @@
+<div class="time-container">
+    <div id="time-tag-div">
+        <div ng-switch="pickerType">
+            <div ng-switch-when="period">
+                <div class="time-tag">
+                    <ul>
+                        <li ng-repeat="periodTag in periodTags">
+                            <a ng-class="{'selected': periodTagSelected == periodTag}" ng-click=changePeriodOption(periodTag)
+                               openlmis-message="label.period.{{periodTag}}" href=""></a>
+                            <span>|</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div ng-switch-default>
+                <div class="time-tag">
+                    <ul>
+                        <li ng-repeat="timeTag in timeTags">
+                            <a ng-class="{'selected': timeTagSelected == timeTag}" ng-click=changeTimeOption(timeTag)
+                               openlmis-message="label.last.{{timeTag}}" href=""></a>
+                            <span>|</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div ng-show="showIncompleteWarning" id="stock-out-incomplete-warning"
+             openlmis-message="label.stock.out.incomplete.warning"></div>
+    </div>
+
+    <div class="date-picker">
+        <div ng-switch="pickerType">
+            <div class="form-cell">
+
+                <label>
+                    <span openlmis-message="label.start.date"></span>
+                </label>
+
+                <div ng-switch-when="period">
+                    <div class="stock-out-date-picker">
+                        <input name="startTime" type="text"
+                               ui-date=periodStartOptions
+                               ui-date-format
+                               readonly
+                               ng-model="dateRange.startTime"
+                        />
+                    </div>
+                </div>
+
+                <div ng-switch-default>
+                    <div class="stock-out-date-picker">
+                        <input name="startTime" id="startTime" type="text"
+                               ui-date=datePickerStartOptions
+                               ui-date-format
+                               readonly
+                               ng-model="dateRange.startTime"/>
+                    </div>
+                </div>
+
+            </div>
+
+            <div> -</div>
+
+            <div class="form-cell">
+                <label>
+                    <span openlmis-message="label.end.date"></span>
+                </label>
+
+                <div ng-switch-when="period">
+                    <div class="stock-out-date-picker">
+                        <input name="endTime" type="text"
+                               ui-date=periodEndOptions
+                               ui-date-format
+                               readonly
+                               ng-model="dateRange.endTime"/>
+                    </div>
+                </div>
+
+                <div ng-switch-default>
+                    <div class="stock-out-date-picker">
+                        <input name="endTime" id="endTime" type="text"
+                               ui-date=datePickerEndOptions
+                               ui-date-format
+                               readonly
+                               ng-model="dateRange.endTime"/>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>

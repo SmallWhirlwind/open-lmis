@@ -43,14 +43,24 @@ public class ProductFormService {
     String productFormCode = form.getCode();
     if (productFormCode == null || productFormCode.isEmpty()) return null;
 
-    form = repository.getByCode(productFormCode);
+    return checkProductFormExisting(productFormCode);
+  }
+
+  public ProductForm checkProductFormExisting(String productFormCode) {
+    ProductForm form;
+    form = getProductForm(productFormCode);
     if (form == null) throw new DataException("error.reference.data.invalid.product.form");
 
     return form;
+  }
+
+  public ProductForm getProductForm(String productFormCode) {
+    return repository.getByCode(productFormCode);
   }
   
   public void save(ProductForm pf) {
     if(pf.hasId()) repository.update(pf);
     else repository.insert(pf);
   }
+
 }

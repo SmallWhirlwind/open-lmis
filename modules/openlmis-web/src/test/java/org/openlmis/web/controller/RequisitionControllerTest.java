@@ -14,6 +14,7 @@ import org.hamcrest.CoreMatchers;
 import org.hamcrest.Matcher;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.Ignore;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.BlockJUnit4ClassRunner;
@@ -38,6 +39,7 @@ import org.powermock.modules.junit4.PowerMockRunnerDelegate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.web.servlet.ModelAndView;
 
@@ -51,6 +53,7 @@ import static java.util.Arrays.asList;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.*;
+import static org.mockito.Matchers.*;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
@@ -159,6 +162,53 @@ public class RequisitionControllerTest {
   }
 
   @Test
+  public void shouldGetPdfDownloadByRnRIdAndProgramId() throws Exception {
+    //given
+    Long rnrId = 1L;
+    Long programId = 2L;
+    controller.pdfGenerator = mock(PDFGenerator.class);
+    controller.EXPORT_TMP_PATH = "/tmp";
+
+    //when
+    MockHttpServletResponse mockHttpServletResponse = new MockHttpServletResponse();
+
+    when(requisitionService.getProgramId(rnrId)).thenReturn(programId);
+    when(controller.pdfGenerator.getNameForPdf()).thenReturn("");
+    when(controller.pdfGenerator.generatePdf(eq(rnrId), eq(programId) , anyString())).thenReturn("");
+
+    controller.getPDFFile(rnrId, mockHttpServletResponse);
+
+    //then
+    verify(controller.pdfGenerator).generatePdf(eq(rnrId), eq(programId), anyString());
+  }
+
+  @Test
+  public void shouldGetSIMAMDownloadByRnRId() throws Exception {
+    //given
+    Long rnrId = 1L;
+    controller.requisitionEmailService = mock(RequisitionEmailServiceForSIMAM.class);
+    Rnr requisition = make(a(defaultRequisition));
+
+    //when
+    MockHttpServletResponse mockHttpServletResponse = new MockHttpServletResponse();
+    when(requisitionService.getFullRequisitionById(rnrId)).thenReturn(requisition);
+    when(controller.requisitionEmailService.generateRegimenExcelForSIMAM(requisition)).thenReturn("regimen.xlsx");
+    when(controller.requisitionEmailService.fileNameForRegimens(requisition)).thenReturn("regimen.xlsx");
+    when(controller.requisitionEmailService.generateRequisitionExcelForSIMAM(requisition)).thenReturn("requisition.xlsx");
+    when(controller.requisitionEmailService.fileNameForRequiItems(requisition)).thenReturn("requisition.xlsx");
+
+
+    controller.getSIMAM(rnrId, mockHttpServletResponse);
+
+    //then
+    verify(controller.requisitionEmailService).generateRequisitionExcelForSIMAM(requisition);
+    verify(controller.requisitionEmailService).generateRegimenExcelForSIMAM(requisition);
+
+    assertThat(mockHttpServletResponse.getContentType(), is("Content-type: application/zip"));
+    assertNotNull(mockHttpServletResponse.getContentAsString());
+  }
+
+  @Test
   public void shouldSetCanApproveFlagTrueIfRequisitionInApprovableState() throws Exception {
     Rnr rnr = new Rnr();
     rnr.setId(1000L);
@@ -197,6 +247,7 @@ public class RequisitionControllerTest {
     assertFalse((boolean) requisitionData.getBody().getData().get(CAN_APPROVE_RNR));
   }
 
+  @Ignore("save function is forbidden")
   @Test
   public void shouldSaveWIPRnr() throws Exception {
 
@@ -216,6 +267,7 @@ public class RequisitionControllerTest {
     assertThat(response.getBody().getErrorMsg(), is(equalTo(errorMessage)));
   }
 
+  @Ignore("submit rnr function is forbidden")
   @Test
   public void shouldAllowSubmittingOfRnrAndTagWithModifiedBy() throws Exception {
     Rnr rnr = new Rnr(1L);
@@ -233,6 +285,7 @@ public class RequisitionControllerTest {
     assertThat(rnr.getModifiedBy(), is(USER_ID));
   }
 
+  @Ignore
   @Test
   public void shouldReturnErrorMessageIfRnrNotValid() throws Exception {
     Rnr rnr = new Rnr(1L);
@@ -246,6 +299,7 @@ public class RequisitionControllerTest {
     assertThat(response.getBody().getErrorMsg(), is("some error"));
   }
 
+  @Ignore
   @Test
   public void shouldGiveMessageAndAuthorizeRnr() throws Exception {
     String code = RequisitionService.RNR_AUTHORIZED_SUCCESSFULLY;
@@ -268,6 +322,7 @@ public class RequisitionControllerTest {
     assertThat(response.getStatusCode(), is(HttpStatus.OK));
   }
 
+  @Ignore
   @Test
   public void shouldNotAuthorizeRnrAndGiveErrorMessage() throws Exception {
     String errorMessage = "some error";
@@ -280,6 +335,7 @@ public class RequisitionControllerTest {
     assertThat(response.getBody().getErrorMsg(), is("some error"));
   }
 
+  @Ignore
   @Test
   public void shouldGiveErrorResponseIfThereIsAnyExceptionWhileSavingRnr() throws Exception {
     String errorMessage = "some error";
@@ -290,6 +346,7 @@ public class RequisitionControllerTest {
     assertThat(response.getBody().getErrorMsg(), is(errorMessage));
   }
 
+  @Ignore
   @Test
   public void shouldGiveSuccessResponseIfRnrSavedSuccessfully() throws Exception {
 

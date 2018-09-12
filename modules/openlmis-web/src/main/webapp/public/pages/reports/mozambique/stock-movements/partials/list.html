@@ -1,0 +1,49 @@
+<h3 openlmis-message="view.rnr.via.product.stockMovements"></h3>
+<div class="stock-movement-header">
+    <span class="product-info">{{productCode}} {{stockMovements[0]["movement.productname"]}}</span>
+
+    <div class="facility">
+        <span openlmis-message="report.health.facility"></span>
+        <span class="info">: {{facilityName}}</span>
+
+        <span openlmis-message="view.rnr.district"></span>
+        <span class="info">: {{district}}</span>
+
+        <span openlmis-message="view.rnr.province"></span>
+        <span class="info">: {{province}}</span>
+
+    </div>
+
+</div>
+<div id="stockMovements" ng-if="stockMovements">
+
+    <table class="table table-condensed table-bordered table-striped">
+        <tr class="gradient-header">
+            <th openlmis-message="stock.movement.date"></th>
+            <th openlmis-message="stock.movement.reason"></th>
+            <th openlmis-message="stock.movement.document.number"></th>
+            <th openlmis-message="stock.movement.entries"></th>
+            <th openlmis-message="stock.movement.negative.adjustment"></th>
+            <th openlmis-message="stock.movement.positive.adjustment"></th>
+            <th openlmis-message="stock.movement.issues"></th>
+            <th openlmis-message="stock.movement.soh"></th>
+            <th openlmis-message="stock.movement.requestedquantity"></th>
+            <th openlmis-message="stock.movement.signature"></th>
+        </tr>
+
+        <tr ng-repeat="entry in stockMovements">
+            <td>{{formatDate(entry["movement.date"]) }}</td>
+            <td openlmis-message="stock.movement.{{entry['movement.reason']}}"></td>
+            <td>{{entry["movement.documentnumber"]}}</td>
+            <td>{{entry.entries}}</td>
+            <td>{{entry.negativeAdjustment}}</td>
+            <td>{{entry.positiveAdjustment}}</td>
+            <td>{{entry.issues}}</td>
+            <td>{{entry["movement.soh"]}}</td>
+            <td>{{entry["movement.requestedquantity"]}}</td>
+            <td>{{entry["movement.signature"]}}</td>
+        </tr>
+    </table>
+</div>
+<label ng-show="stockMovements && stockMovements.length == 0">No Data</label>
+

@@ -10,6 +10,18 @@
     border: 0;
   }
 
+  .text-nowrap {
+    -webkit-transform: rotate(-90deg);
+    -moz-transform: rotate(-90deg);
+    -ms-transform: rotate(-90deg);
+    transform: rotate(-90deg);
+
+    -webkit-transform-origin: 50% 50%;
+    -moz-transform-origin: 50% 50%;
+    -ms-transform-origin: 50% 50%;
+    transform-origin: 50% 50%;
+  }
+
   .banner-text {
     text-align: center;
     font-size: 10px;
@@ -55,7 +67,7 @@
 
     th, td {
       border: 1px solid black;
-      width: 79px;
+      width: 76px;
       word-wrap: break-word;
     }
 
@@ -93,10 +105,11 @@
   }
 
   .middle-section {
-    display: flex;
-    flex-direction: row;
 
     .regime-section {
+      display: block;
+      float: left;
+
       .regime-form {
         thead {
           background-color: #f0f0f0;
@@ -118,7 +131,10 @@
     }
 
     .patient-section {
-      margin-left: 77px;
+      display: block;
+      float: left;
+      width: 372px;
+      margin-left:115px;
 
       .patient-form {
 
@@ -138,6 +154,7 @@
         tr {
           td:first-child {
             background-color: #d0d0d0;
+            width: 100px;
           }
           th {
             height: 18.8px;
@@ -229,4 +246,9 @@ table.regime-form {
 
 .align-right {
   text-align: right;
+}
+
+.btn-download {
+  font-size: 1em;
+  padding: .5em;
 }

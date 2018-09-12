@@ -15,12 +15,15 @@ function SupplyLineSearchController($scope, $location, navigateBackService, Supp
     {value: "program", name: "label.program"}
   ];
 
-  $scope.showResults = false;
+  $scope.showCloseButton = false;
   $scope.currentPage = 1;
+  $scope.searchedQuery = '%';
   $scope.selectedSearchOption = navigateBackService.selectedSearchOption || $scope.searchOptions[0];
 
   $scope.selectSearchType = function (searchOption) {
     $scope.selectedSearchOption = searchOption;
+    $scope.currentPage = 1;
+    $scope.search($scope.currentPage, $scope.searchedQuery);
   };
 
   $scope.$on('$viewContentLoaded', function () {
@@ -46,7 +49,11 @@ function SupplyLineSearchController($scope, $location, navigateBackService, Supp
       $scope.pagination = data.pagination;
       $scope.totalItems = $scope.pagination.totalRecords;
       $scope.currentPage = $scope.pagination.page;
-      $scope.showResults = true;
+      if($scope.searchedQuery === '%'){
+        $scope.showCloseButton = false;
+      }else {
+        $scope.showCloseButton = true;
+      }
     }, {});
   }
 
@@ -59,8 +66,11 @@ function SupplyLineSearchController($scope, $location, navigateBackService, Supp
     $scope.query = "";
     $scope.totalItems = 0;
     $scope.supplyLines = [];
-    $scope.showResults = false;
+    $scope.showCloseButton = false;
     angular.element("#searchSupplyLine").focus();
+    $scope.searchedQuery= "%";
+    $scope.currentPage = 1;
+    $scope.search($scope.currentPage, $scope.searchedQuery);
   };
 
   $scope.triggerSearch = function (event) {

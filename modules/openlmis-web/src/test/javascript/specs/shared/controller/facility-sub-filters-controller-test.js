@@ -76,18 +76,19 @@ describe("Facility Sub Filters Controller", function () {
     expect(scope.clearGeoZoneSearch).toHaveBeenCalled();
   });
 
-  it('should clear geo zone search', function () {
-    scope.showResults = true;
+  it('should clear geo zone search and show all result', function () {
+    scope.showCloseButton = true;
     scope.geoZoneList = [
       {"name": "moz"}
     ];
-    scope.geoZoneSearchParam = "moz";
 
+    scope.geoZoneSearchParam = "moz";
+    var searchSpy = spyOn(scope, 'searchGeoZone');
     scope.clearGeoZoneSearch();
 
-    expect(scope.showResults).toBeFalsy();
     expect(scope.geoZoneList).toEqual([]);
     expect(scope.geoZoneSearchParam).toBeUndefined();
+    expect(searchSpy).toHaveBeenCalledWith();
   });
 
   it('should set facility type and label as change if already selected', function () {
@@ -128,7 +129,7 @@ describe("Facility Sub Filters Controller", function () {
       {"name": "moz", "level": {"name": "district"}}
     ]);
     expect(scope.levels).toEqual(["district"]);
-    expect(scope.showResults).toEqual(true);
+    expect(scope.showCloseButton).toEqual(true);
   });
 
   it('should set message if too many searched geo zones found', function () {
@@ -148,6 +149,8 @@ describe("Facility Sub Filters Controller", function () {
   it('should show filter modal with facilityTypes', function () {
     scope.filterModal = false;
     $httpBackend.when('GET', '/facility-types.json').respond({"facilityTypeList": facilityTypeList});
+    var response = {"geoZones": [], "message": "Too may results found"};
+    $httpBackend.when('GET', '/filtered-geographicZones.json?searchParam=%25').respond(response);
     scope.showFilterModal();
     $httpBackend.flush();
 
@@ -246,5 +249,13 @@ describe("Facility Sub Filters Controller", function () {
 
     expect(scope.selectedFacilityType).toBeUndefined();
     expect(scope.selectedGeoZone).toBeUndefined();
+  });
+
+  it('should search % on loaded page', function () {
+    var searchSpy = spyOn(scope, 'searchGeoZone');
+    scope.filterModal = 'true';
+    scope.$digest();
+
+    expect(searchSpy).toHaveBeenCalledWith();
   });
 });

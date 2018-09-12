@@ -21,6 +21,7 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -119,6 +120,11 @@ public class ProgramProductRepository {
     return mapper.getByProductCode(code);
   }
 
+  public List<String> getActiveProgramCodesByProductCode(String code) {
+    return mapper.getActiveProgramCodesByProductCode(code);
+  }
+
+
   public List<ProgramProduct> getProgramProductsBy(Long programId, String facilityTypeCode) {
     return mapper.getByProgramIdAndFacilityTypeCode(programId, facilityTypeCode);
   }
@@ -151,5 +157,13 @@ public class ProgramProductRepository {
 
   public void updateISA(ProgramProductISA programProductISA) {
     programProductIsaMapper.update(programProductISA);
+  }
+
+  public List<ProgramProduct> getByProgramAfterUpdatedTimeByFacilityType(Program program, Date afterUpdatedTime, FacilityType facilityType) {
+    return mapper.getByProgramAfterUpdatedTimeFilterByFacilityType(program.getId(), afterUpdatedTime, facilityType.getId());
+  }
+
+  public List<ProgramProduct> getLatestUpdatedProgramProduct(Date afterUpdatedTime) {
+    return mapper.getLatestUpdatedProgramProduct(afterUpdatedTime);
   }
 }

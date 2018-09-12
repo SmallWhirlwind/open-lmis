@@ -12,10 +12,11 @@
   -->
 
 <beans xmlns="http://www.springframework.org/schema/beans"
-       xmlns:context="http://www.springframework.org/schema/context" xmlns:tx="http://www.springframework.org/schema/tx"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:task="http://www.springframework.org/schema/task"
        xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.1.xsd
                            http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.1.xsd
-                           http://www.springframework.org/schema/context http://www.springframework.org/schema/integration http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-4.1.xsd"
+                           http://www.springframework.org/schema/context http://www.springframework.org/schema/integration   http://www.springframework.org/schema/task http://www.springframework.org/schema/task/spring-task.xsd"
        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
     <context:annotation-config/>
@@ -26,6 +27,16 @@
     <import resource="classpath:applicationContext-requisition.xml"/>
 
     <context:component-scan base-package="org.openlmis.report"/>
+
+    <bean id="reportsProperties" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+
+        <property name="ignoreResourceNotFound" value="true"/>
+        <property name="locations">
+            <list>
+                <value>classpath:/reports-configs.properties</value>
+            </list>
+        </property>
+    </bean>
 
     <!-- Integrates with report module -->
     <bean id="reportManager" class="org.openlmis.report.ReportManager">
@@ -387,5 +398,12 @@
             </list>
         </constructor-arg>
     </bean>
+
+    <task:scheduled-tasks scheduler="viewRefreshScheduler">
+        <task:scheduled ref="materializedViewRefresher" fixed-delay="${stockout.view.refresh.rate}"
+                        method="refreshViews"/>
+    </task:scheduled-tasks>
+
+    <task:scheduler id="viewRefreshScheduler"/>
 
 </beans>

@@ -38,7 +38,7 @@ describe("Product Search Controller", function () {
     expect(scope.programProducts).toEqual([programProduct]);
     expect(scope.pagination).toEqual(pagination);
     expect(scope.currentPage).toEqual(1);
-    expect(scope.showResults).toEqual(true);
+    expect(scope.showCloseButton).toEqual(true);
     expect(scope.totalItems).toEqual(100);
   });
 
@@ -57,23 +57,25 @@ describe("Product Search Controller", function () {
     expect(scope.programProducts).toEqual([programProduct]);
     expect(scope.pagination).toEqual(pagination);
     expect(scope.currentPage).toEqual(1);
-    expect(scope.showResults).toEqual(true);
+    expect(scope.showCloseButton).toEqual(true);
     expect(scope.totalItems).toEqual(100);
   });
 
-  it('should clear search param and result list', function () {
+  it('should clear search param and show all result list', function () {
     var programProduct = {"program": {"code": "pg1", "name": "prog1"}, "product": {"code": "pd1", "name": "prod1"}};
     scope.query = "query";
     scope.totalItems = 100;
     scope.programProducts = [programProduct];
-    scope.showResults = true;
+    scope.showCloseButton = true;
+    var searchSpy = spyOn(scope, 'loadProducts');
 
     scope.clearSearch();
 
-    expect(scope.showResults).toEqual(false);
+    expect(scope.showCloseButton).toEqual(false);
     expect(scope.query).toEqual("");
     expect(scope.totalItems).toEqual(0);
     expect(scope.programProducts).toEqual([]);
+    expect(searchSpy).toHaveBeenCalledWith(1,'%');
   });
 
   it('should trigger search on enter key', function () {
@@ -164,5 +166,21 @@ describe("Product Search Controller", function () {
       { name: "essential"}
     ];
     expect(scope.showCategory(1)).toBeTruthy();
+  });
+
+  it('should search % on loaded page', function () {
+    var searchSpy = spyOn(scope, 'loadProducts');
+    scope.currentPage = 1;
+    scope.$digest();
+
+    expect(searchSpy).toHaveBeenCalledWith(1,'%');
+  });
+
+  it('should trigger search % when change SearchType ', function () {
+    scope.searchOption = {value: "program", name: "option.value.program"};
+    var searchSpy = spyOn(scope, 'loadProducts');
+    scope.selectSearchType(scope.searchOption);
+
+    expect(searchSpy).toHaveBeenCalledWith(1,'%');
   });
 });

@@ -46,7 +46,7 @@ describe("Supervisory Node Search Controller", function () {
     expect(scope.supervisoryNodeList).toEqual([supervisoryNode]);
     expect(scope.pagination).toEqual(pagination);
     expect(scope.currentPage).toEqual(1);
-    expect(scope.showResults).toEqual(true);
+    expect(scope.showCloseButton).toEqual(true);
     expect(scope.totalItems).toEqual(100);
   });
 
@@ -64,23 +64,25 @@ describe("Supervisory Node Search Controller", function () {
     expect(scope.supervisoryNodeList).toEqual([supervisoryNode]);
     expect(scope.pagination).toEqual(pagination);
     expect(scope.currentPage).toEqual(1);
-    expect(scope.showResults).toEqual(true);
+    expect(scope.showCloseButton).toEqual(true);
     expect(scope.totalItems).toEqual(100);
   });
 
-  it('should clear search param and result list', function () {
+  it('should clear search param and show all result list', function () {
     var supervisoryNode = {"code": "N1", "name": "Node 1", "parent": 2};
     scope.query = "query";
     scope.totalItems = 100;
     scope.supervisoryNodeList = [supervisoryNode];
-    scope.showResults = true;
+    scope.showCloseButton = true;
+    var searchSpy = spyOn(scope, 'search');
 
     scope.clearSearch();
 
-    expect(scope.showResults).toEqual(false);
+    expect(scope.showCloseButton).toEqual(false);
     expect(scope.query).toEqual("");
     expect(scope.totalItems).toEqual(0);
     expect(scope.supervisoryNodeList).toEqual([]);
+    expect(searchSpy).toHaveBeenCalledWith(1,'%');
   });
 
   it('should trigger search on enter key', function () {
@@ -127,6 +129,22 @@ describe("Supervisory Node Search Controller", function () {
     scope.edit(1);
     expect(location.path).toHaveBeenCalledWith('edit/1');
     expect(navigateBackService.setData).toHaveBeenCalledWith({query: scope.query, selectedSearchOption: scope.selectedSearchOption});
+  });
+
+  it('should search % on loaded page', function () {
+    var searchSpy = spyOn(scope, 'search');
+    scope.currentPage = 1;
+    scope.$digest();
+
+    expect(searchSpy).toHaveBeenCalledWith(1,'%');
+  });
+
+  it('should trigger search % when change SearchType ', function () {
+    scope.searchOption = {value: "parent", name: "option.value.supervisory.node.parent"};
+    var searchSpy = spyOn(scope, 'search');
+    scope.selectSearchType(scope.searchOption);
+
+    expect(searchSpy).toHaveBeenCalledWith(1,'%');
   });
 
 });

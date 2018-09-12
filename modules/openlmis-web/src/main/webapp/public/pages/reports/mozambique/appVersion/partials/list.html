@@ -1,0 +1,37 @@
+<div class="app-version">
+    <h3 openlmis-message="title.app.version"></h3>
+    <h4 openlmis-message="label.app.version.total|appVersions.length"></h4>
+    <table class="table table-condensed table-bordered table-striped fixed-header-table header-table">
+        <tr class="gradient-header">
+            <th openlmis-message="label.app.version.number"></th>
+            <th openlmis-message="label.app.version.user" ng-click="sortType = 'userName'; sortReverse = !sortReverse">
+                <span ng-show="sortType != 'userName'" class="icon-sort"></span>
+                <span ng-show="sortType == 'userName' && !sortReverse" class="icon-sort-up"></span>
+                <span ng-show="sortType == 'userName' && sortReverse" class="icon-sort-down"></span>
+            </th>
+
+            <th openlmis-message="label.app.version.facilityname" ng-click="sortType = 'facilityName'; sortReverse = !sortReverse">
+                <span ng-show="sortType != 'facilityName'" class="icon-sort"></span>
+                <span ng-show="sortType == 'facilityName' && !sortReverse" class="icon-sort-up"></span>
+                <span ng-show="sortType == 'facilityName' && sortReverse" class="icon-sort-down"></span>
+            </th>
+
+            <th openlmis-message="label.app.version.appversion" ng-click="sortType = 'appVersion'; sortReverse = !sortReverse">
+                <span ng-show="sortType != 'appVersion'" class="icon-sort"></span>
+                <span ng-show="sortType == 'appVersion' && !sortReverse" class="icon-sort-up"></span>
+                <span ng-show="sortType == 'appVersion' && sortReverse" class="icon-sort-down"></span></th>
+
+        </tr>
+    </table>
+    <div class="content-table">
+        <table class="table table-condensed table-bordered table-striped fixed-header-table">
+            <tr ng-repeat="appVersion in appVersions| orderBy:sortType:sortReverse">
+                <td>{{$index+1}}</td>
+                <td>{{appVersion.userName}}</td>
+                <td>{{appVersion.facilityName}}</td>
+                <td>{{appVersion.appVersion}}</td>
+            </tr>
+        </table>
+    </div>
+
+</div>

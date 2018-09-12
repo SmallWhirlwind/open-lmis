@@ -41,16 +41,24 @@ public interface RnrLineItemMapper {
   @Options(useGeneratedKeys = true, keyProperty = "lineItem.id")
   public Integer insert(@Param("lineItem") RnrLineItem rnrLineItem, @Param("previousNormalizedConsumptions") String previousNormalizedConsumptions);
 
-  @Select("SELECT requisition_line_items.*, " +
-            "products.strength FROM requisition_line_items, " +
-            "products WHERE rnrId = #{rnrId} " +
-            "and requisition_line_items.fullSupply = true " +
-            "and requisition_line_items.productcode = products.code  " +
-            "order by requisition_line_items.id;")
+  @Select("SELECT requisition_line_items.*, products.strength, products.primaryname, products.isKit ,product_categories.name " +
+    "FROM requisition_line_items " +
+    "INNER JOIN products ON requisition_line_items.productcode = products.code " +
+    "INNER JOIN program_products on  products.id = program_products.productid " +
+    "INNER JOIN product_categories ON program_products.productcategoryid = product_categories.id " +
+    "INNER JOIN programs ON program_products.programid = programs.id " +
+    "INNER JOIN requisitions ON requisition_line_items.rnrid = requisitions.id " +
+    "WHERE rnrId = #{rnrId} and program_products.active = TRUE " +
+    "and requisition_line_items.fullSupply = true " +
+    "and requisition_line_items.productcode = products.code " +
+    "and (programs.id = requisitions.programid OR programs.parentid = requisitions.programid) " +
+    "order by productDisplayOrder;")
   @Results(value = {
     @Result(property = "id", column = "id"),
+    @Result(property = "isKit", column = "isKit"),
     @Result(property = "productStrength", column = "strength"),
-    @Result(property = "productPrimaryName", column = "primaryname"),
+    @Result(property = "productCategory", column = "name"),
+   @Result(property = "productPrimaryName", column = "primaryname"),
     @Result(property = "previousNormalizedConsumptions", column = "previousNormalizedConsumptions", typeHandler = StringToList.class),
     @Result(property = "lossesAndAdjustments", javaType = List.class, column = "id",
       many = @Many(select = "org.openlmis.rnr.repository.mapper.LossesAndAdjustmentsMapper.getByRnrLineItem"))

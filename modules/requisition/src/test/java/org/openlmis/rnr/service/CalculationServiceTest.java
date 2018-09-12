@@ -92,7 +92,7 @@ public class CalculationServiceTest {
 
     verify(rnrLineItem2).validateNonFullSupply();
   }
-
+  
   @Test
   public void shouldCalculateCalculatedFieldsAccordingToProgramTemplate() throws Exception {
     ArrayList<RnrColumn> programRequisitionColumns = new ArrayList<>();

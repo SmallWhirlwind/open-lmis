@@ -18,9 +18,11 @@ import org.openlmis.core.builder.FacilityBuilder;
 import org.openlmis.core.builder.ProductBuilder;
 import org.openlmis.core.domain.Facility;
 import org.openlmis.core.domain.Product;
+import org.openlmis.core.domain.StockAdjustmentReason;
 import org.openlmis.core.query.QueryExecutor;
 import org.openlmis.core.repository.mapper.FacilityMapper;
 import org.openlmis.core.repository.mapper.ProductMapper;
+import org.openlmis.core.repository.mapper.StockAdjustmentReasonMapper;
 import org.openlmis.core.utils.DateUtil;
 import org.openlmis.db.categories.IntegrationTests;
 import org.openlmis.stockmanagement.domain.StockCard;
@@ -33,14 +35,11 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.test.context.transaction.TransactionConfiguration;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.Date;
 import java.util.List;
 
-import static com.natpryce.makeiteasy.MakeItEasy.a;
-import static com.natpryce.makeiteasy.MakeItEasy.make;
-import static com.natpryce.makeiteasy.MakeItEasy.with;
+import static com.natpryce.makeiteasy.MakeItEasy.*;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
@@ -63,12 +62,17 @@ public class StockCardMapperIT {
   @Autowired
   private StockCardMapper mapper;
 
+  @Autowired
+  private StockAdjustmentReasonMapper stockAdjustmentReasonMapper;
+
   private StockCard defaultCard;
   private Facility defaultFacility;
-  private Product defaultProduct;
 
+  private Product defaultProduct;
   @Autowired
   private QueryExecutor queryExecutor;
+  private StockCard stockCard1;
+  private StockCard stockCard2;
 
   @Before
   public void setup() {
@@ -87,42 +91,61 @@ public class StockCardMapperIT {
 
   @Test
   public void shouldInsertEntry() {
-    StockCardEntry entry = new StockCardEntry(defaultCard, StockCardEntryType.CREDIT, 1L, null, null);
+    StockCardEntry entry = getStockCardEntry();
+    Timestamp date = new Timestamp(DateUtil.parseDate("2015-12-12 12:12:12").getTime());
+    entry.setCreatedDate(date);
+
     mapper.insertEntry(entry);
 
     List<StockCardEntry> entries = mapper.getEntries(defaultCard.getId());
     assertThat(entries.size(), is(1));
+    assertThat(DateUtil.formatDate(entries.get(0).getCreatedDate()), is("2015-12-12 12:12:12"));
+    assertThat(entries.get(0).getRequestedQuantity(), is(500L));
+
+  }
+
+  private StockCardEntry getStockCardEntry() {
+    StockCardEntry entry = new StockCardEntry(defaultCard, StockCardEntryType.CREDIT, 1L, null, null, 500L);
+    entry.setCreatedDate(new Date());
+    return entry;
   }
 
   @Test
   public void shouldInsertEntryKeyValues() {
-    StockCardEntry entry = new StockCardEntry(defaultCard, StockCardEntryType.CREDIT, 1L, null, null);
+    StockCardEntry entry = getStockCardEntry();
     mapper.insertEntry(entry);
     mapper.insertEntryKeyValue(entry, "vvmstatus", "1");
 
     List<StockCardEntry> entries = mapper.getEntries(defaultCard.getId());
 
-    for (StockCardEntryKV kv : entries.get(0).getKeyValues()) {
-      if (kv.getKeyColumn().equalsIgnoreCase("vvmstatus")) {
-        assertEquals(kv.getValueColumn(), "1");
+    for (StockCardEntryKV kv : entries.get(0).getExtensions()) {
+      if (kv.getKey().equalsIgnoreCase("vvmstatus")) {
+        assertEquals(kv.getValue(), "1");
       }
     }
   }
 
   @Test
   public void shouldGetStockCardByFacilityIdAndProductCode() {
-    StockCardEntry entry = new StockCardEntry(defaultCard, StockCardEntryType.CREDIT, 1L, null, null);
+    StockCardEntry entry = getStockCardEntry();
+    StockAdjustmentReason reason = StockAdjustmentReason.create("reason");
+    stockAdjustmentReasonMapper.insert(reason);
+    entry.setAdjustmentReason(reason);
+
     mapper.insertEntry(entry);
 
     StockCard stockCard = mapper.getByFacilityAndProduct(defaultFacility.getId(), defaultProduct.getCode());
     assertThat(stockCard.getProduct().getCode(), is(defaultProduct.getCode()));
     assertThat(stockCard.getFacility().getId(), is(defaultFacility.getId()));
+    assertThat(stockCard.getEntries().get(0).getAdjustmentReason().getName(), is("reason"));
   }
 
   @Test
   public void shouldSaveStockEntryOccurred() {
     Date occurred = DateUtil.parseDate("2015-10-30 00:00:00");
-    StockCardEntry entry = new StockCardEntry(defaultCard, StockCardEntryType.CREDIT, 1L, occurred, null);
+    StockCardEntry entry = getStockCardEntry();
+    entry.setOccurred(occurred);
+
     mapper.insertEntry(entry);
 
     List<StockCardEntry> entries = mapper.getEntries(defaultCard.getId());
@@ -133,7 +156,9 @@ public class StockCardMapperIT {
   @Test
   public void shouldSaveStockEntryDocumentNumber() {
     String referenceNumber = "110";
-    StockCardEntry entry = new StockCardEntry(defaultCard, StockCardEntryType.CREDIT, 1L, null, referenceNumber);
+    StockCardEntry entry = getStockCardEntry();
+    entry.setReferenceNumber(referenceNumber);
+
     mapper.insertEntry(entry);
 
     List<StockCardEntry> entries = mapper.getEntries(defaultCard.getId());
@@ -141,33 +166,85 @@ public class StockCardMapperIT {
     assertThat(entries.get(0).getReferenceNumber(), is(referenceNumber));
   }
 
-  private void updateModifiedDateForStockCard(Timestamp modifiedDate, Long stockCardId) throws SQLException {
-    queryExecutor.executeUpdate("UPDATE stock_cards SET modifieddate = ? WHERE id = ?", modifiedDate, stockCardId);
+  @Test
+  public void shouldReturnStockCardBasicInfoWhenGiveFacilityId() throws Exception {
+
+    StockCardEntry entry = getStockCardEntry();
+    String expirationDate = "2015/1/1";
+    mapper.insertEntry(entry);
+    mapper.insertEntryKeyValue(entry, "expirationdates", expirationDate);
+
+    List<StockCard> stockCards = mapper.queryStockCardBasicInfo(defaultFacility.getId());
+    assertThat(stockCards.size(), is(1));
+    assertThat(stockCards.get(0).getProduct().getCode(), is(ProductBuilder.PRODUCT_CODE));
   }
 
   @Test
-  public void shouldReturnLastUpdatedDateOfStockDataByFacilityId() throws SQLException {
+  public void shouldReturnStockCardEntryByOccurredDateRange() throws Exception {
+
+    StockCardEntry entry = getStockCardEntry();
+    entry.setOccurred(DateUtil.parseDate("2015-11-12 00:00:00"));
+    mapper.insertEntry(entry);
+
+    StockCardEntry entry2 = getStockCardEntry();
+    entry2.setOccurred(DateUtil.parseDate("2015-11-13 00:00:00"));
+    mapper.insertEntry(entry2);
+
+    StockCardEntry entry3 = getStockCardEntry();
+    entry3.setOccurred(DateUtil.parseDate("2015-11-14 00:00:00"));
+    mapper.insertEntry(entry3);
+
+    Date startDate = DateUtil.parseDate("2015-11-12 00:00:00");
+    Date endDate = DateUtil.parseDate("2015-11-13 00:00:00");
+
+    List<StockCardEntry> stockCardsEntries = mapper.queryStockCardEntriesByDateRange(defaultCard.getId(),
+        startDate, endDate);
+    assertThat(stockCardsEntries.size(), is(1));
+  }
+
+
+  @Test
+  public void shouldReturnStockCardLatestExpirationDates() throws Exception {
+    StockCardEntry entry = getStockCardEntry();
+    String expirationDate = "2015/1/1";
+    mapper.insertEntry(entry);
+    mapper.insertEntryKeyValue(entry, "expirationdates", expirationDate);
+
+    String latestExpirationDates = mapper.getStockCardLatestExpirationDates(defaultCard.getId());
+    assertThat(latestExpirationDates, is(expirationDate));
+  }
+
+  @Test
+  public void shouldUpdateAllStockCardsWithFacilityId() throws InterruptedException {
+    insertTwoMoreStockCardsForDefaultFacility();
+
+    int numOfResults = mapper.updateAllStockCardSyncTimeForFacilityToNow(defaultFacility.getId());
+
+    assertEquals(3, numOfResults);
+  }
+
+  @Test
+  public void shouldUpdateStockCardsNotInProductCodeList() throws Exception {
+    insertTwoMoreStockCardsForDefaultFacility();
+
+    int numOfResults = mapper.updateStockCardToSyncTimeToNow(defaultFacility.getId(), "code2");
+
+    assertEquals(1, numOfResults);
+  }
+
+  private void insertTwoMoreStockCardsForDefaultFacility() {
     Product product1 = make(a(ProductBuilder.defaultProduct, with(active, true), with(code, "Prod1")));
     Product product2 = make(a(ProductBuilder.defaultProduct, with(active, true), with(code, "code2")));
     productMapper.insert(product1);
     productMapper.insert(product2);
 
-    StockCard stockCard1 = new StockCard();
+    stockCard1 = new StockCard();
     stockCard1.setFacility(defaultFacility);
     stockCard1.setProduct(product1);
-    StockCard stockCard2 = new StockCard();
+    stockCard2 = new StockCard();
     stockCard2.setFacility(defaultFacility);
     stockCard2.setProduct(product2);
-
     mapper.insert(stockCard1);
     mapper.insert(stockCard2);
-
-    Timestamp date1 = new Timestamp(DateUtil.parseDate("2025-12-12 12:12:12").getTime());
-    Timestamp date2 = new java.sql.Timestamp(DateUtil.parseDate("2015-11-11 11:11:11").getTime());
-    updateModifiedDateForStockCard(date1, stockCard1.getId());
-    updateModifiedDateForStockCard(date2, stockCard2.getId());
-
-    Date lastUpdatedTime = mapper.getLastUpdatedTimeforStockDataByFacility(defaultFacility.getId());
-    assertEquals("2025-12-12 12:12:12", DateUtil.formatDate(lastUpdatedTime));
   }
 }

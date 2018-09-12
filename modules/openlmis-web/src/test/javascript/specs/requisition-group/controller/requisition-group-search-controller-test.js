@@ -37,7 +37,7 @@ describe("Requisition Group Search Controller", function () {
     expect(scope.requisitionGroupList).toEqual([requisitionGroup]);
     expect(scope.pagination).toEqual(pagination);
     expect(scope.currentPage).toEqual(1);
-    expect(scope.showResults).toEqual(true);
+    expect(scope.showCloseButton).toEqual(true);
     expect(scope.totalItems).toEqual(100);
   });
 
@@ -55,23 +55,25 @@ describe("Requisition Group Search Controller", function () {
     expect(scope.requisitionGroupList).toEqual([requisitionGroup]);
     expect(scope.pagination).toEqual(pagination);
     expect(scope.currentPage).toEqual(1);
-    expect(scope.showResults).toEqual(true);
+    expect(scope.showCloseButton).toEqual(true);
     expect(scope.totalItems).toEqual(100);
   });
 
-  it('should clear search param and result list', function () {
+  it('should clear search param and show all result list', function () {
     var requisitionGroup = {"code": "N1", "name": "Node 1"};
     scope.query = "query";
     scope.totalItems = 100;
     scope.requisitionGroupList = [requisitionGroup];
-    scope.showResults = true;
+    scope.showCloseButton = true;
+    var searchSpy = spyOn(scope, 'search');
 
     scope.clearSearch();
 
-    expect(scope.showResults).toEqual(false);
+    expect(scope.showCloseButton).toEqual(false);
     expect(scope.query).toEqual("");
     expect(scope.totalItems).toEqual(0);
     expect(scope.requisitionGroupList).toEqual([]);
+    expect(searchSpy).toHaveBeenCalledWith(1,'%');
   });
 
   it('should trigger search on enter key', function () {
@@ -131,6 +133,22 @@ describe("Requisition Group Search Controller", function () {
 
     expect(navigateBackService.setData).toHaveBeenCalledWith({query: "r1", selectedSearchOption: "req" });
     expect(location.path).toHaveBeenCalledWith('edit/1');
+  });
+
+  it('should search % on loaded page', function () {
+    var searchSpy = spyOn(scope, 'search');
+    scope.currentPage = 1;
+    scope.$digest();
+
+    expect(searchSpy).toHaveBeenCalledWith(1,'%');
+  });
+
+  it('should trigger search % when change SearchType ', function () {
+    scope.searchOption = {value: "supervisoryNode", name: "option.value.supervisory.node"};
+    var searchSpy = spyOn(scope, 'search');
+    scope.selectSearchType(scope.searchOption);
+
+    expect(searchSpy).toHaveBeenCalledWith(1,'%');
   });
 
 });

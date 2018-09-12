@@ -21,6 +21,7 @@ import org.openlmis.core.builder.*;
 import org.openlmis.core.domain.*;
 import org.openlmis.core.query.QueryExecutor;
 import org.openlmis.core.repository.mapper.*;
+import org.openlmis.core.utils.DateUtil;
 import org.openlmis.db.categories.IntegrationTests;
 import org.openlmis.rnr.builder.RnrLineItemBuilder;
 import org.openlmis.rnr.domain.*;
@@ -43,9 +44,7 @@ import static org.joda.time.DateTime.now;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.openlmis.core.builder.FacilityBuilder.FACILITY_CODE;
-import static org.openlmis.core.builder.FacilityBuilder.defaultFacility;
-import static org.openlmis.core.builder.FacilityBuilder.name;
+import static org.openlmis.core.builder.FacilityBuilder.*;
 import static org.openlmis.core.builder.ProcessingPeriodBuilder.*;
 import static org.openlmis.core.builder.ProcessingScheduleBuilder.defaultProcessingSchedule;
 import static org.openlmis.core.builder.ProgramBuilder.programCode;
@@ -148,49 +147,28 @@ public class RequisitionMapperIT {
 
   @Test
   public void shouldGetRequisitionById() {
-    Rnr requisition = new Rnr(new Facility(facility.getId()), new Program(program.getId()), processingPeriod1, false, MODIFIED_BY, 1L);
-    requisition.setAllocatedBudget(new BigDecimal(123.45));
-    requisition.setStatus(INITIATED);
-    requisition.setId(1L);
+    Rnr requisition = generateRnr();
 
     String submitterText = "submitter";
     Signature submitterSignature = new Signature(Signature.Type.SUBMITTER, submitterText);
     String approverText = "approver";
     Signature approverSignature = new Signature(Signature.Type.APPROVER, approverText);
 
-    ArrayList<Signature> rnrSignatures = new ArrayList<>();
-    rnrSignatures.add(submitterSignature);
-    rnrSignatures.add(approverSignature);
-
-    requisition.setRnrSignatures(rnrSignatures);
-
-    signatureMapper.insertSignature(submitterSignature);
-    signatureMapper.insertSignature(approverSignature);
-    mapper.insert(requisition);
-    mapper.insertRnrSignature(requisition, submitterSignature);
-    mapper.insertRnrSignature(requisition, approverSignature);
-
-    Product product = insertProduct(true, "P1");
-    RnrLineItem fullSupplyLineItem = make(a(defaultRnrLineItem, with(fullSupply, true), with(productCode, product.getCode())));
-    RnrLineItem nonFullSupplyLineItem = make(a(defaultRnrLineItem, with(fullSupply, false), with(productCode, product.getCode())));
-    fullSupplyLineItem.setRnrId(requisition.getId());
-    nonFullSupplyLineItem.setRnrId(requisition.getId());
-    lineItemMapper.insert(fullSupplyLineItem, Collections.EMPTY_LIST.toString());
-    lineItemMapper.insert(nonFullSupplyLineItem, Collections.EMPTY_LIST.toString());
-
-    ProgramProduct programProduct = new ProgramProduct(program, product, 1, true);
-    programProduct.setProductCategory(productCategory);
-    programProductMapper.insert(programProduct);
+    insertSignatures(requisition, submitterSignature, approverSignature);
 
     User author = new User();
     author.setId(1L);
     Comment comment = new Comment(requisition.getId(), author, "A comment", null);
     commentMapper.insert(comment);
     updateSupplyingDepotForRequisition(requisition);
+    insertLineItem(requisition);
+    insertComment(requisition);
 
     Rnr fetchedRequisition = mapper.getById(requisition.getId());
 
     assertThat(fetchedRequisition.getId(), is(requisition.getId()));
+    assertThat(fetchedRequisition.isEmergency(), is(true));
+
     assertThat(fetchedRequisition.getProgram().getId(), is(equalTo(program.getId())));
     assertThat(fetchedRequisition.getFacility().getId(), is(equalTo(facility.getId())));
     assertThat(fetchedRequisition.getPeriod().getId(), is(equalTo(processingPeriod1.getId())));
@@ -204,6 +182,70 @@ public class RequisitionMapperIT {
     assertThat(fetchedRequisition.getRnrSignatures().get(0).getText(), is(submitterText));
     assertThat(fetchedRequisition.getRnrSignatures().get(1).getType(), is(Signature.Type.APPROVER));
     assertThat(fetchedRequisition.getRnrSignatures().get(1).getText(), is(approverText));
+  }
+
+    @Test
+  public void shouldGetRequisitionByIdWithoutLossesAndAdjustments() {
+    Rnr requisition = generateRnr();
+
+    Signature submitterSignature = new Signature(Signature.Type.SUBMITTER, "submitter");
+    Signature approverSignature = new Signature(Signature.Type.APPROVER, "approver");
+
+    insertSignatures(requisition, submitterSignature, approverSignature);
+
+    insertLineItem(requisition);
+
+    insertComment(requisition);
+
+    Rnr fetchedRequisition = mapper.getById(requisition.getId());
+
+    assertThat(fetchedRequisition.getFullSupplyLineItems().size(), is(1));
+  }
+
+  private void insertComment(Rnr requisition) {
+    User author = new User();
+    author.setId(1L);
+    Comment comment = new Comment(requisition.getId(), author, "A comment", null);
+    commentMapper.insert(comment);
+    updateSupplyingDepotForRequisition(requisition);
+  }
+
+  private void insertSignatures(Rnr requisition, Signature submitterSignature, Signature approverSignature) {
+    ArrayList<Signature> rnrSignatures = new ArrayList<>();
+    rnrSignatures.add(submitterSignature);
+    rnrSignatures.add(approverSignature);
+
+    requisition.setRnrSignatures(rnrSignatures);
+
+    signatureMapper.insertSignature(submitterSignature);
+    signatureMapper.insertSignature(approverSignature);
+    mapper.insert(requisition);
+    mapper.insertRnrSignature(requisition, submitterSignature);
+    mapper.insertRnrSignature(requisition, approverSignature);
+  }
+
+  private void insertLineItem(Rnr requisition) {
+    Product product = insertProduct(true, "P1");
+    RnrLineItem fullSupplyLineItem = make(a(defaultRnrLineItem, with(fullSupply, true), with(productCode, product.getCode())));
+    fullSupplyLineItem.getLossesAndAdjustments().clear();
+    RnrLineItem nonFullSupplyLineItem = make(a(defaultRnrLineItem, with(fullSupply, false), with(productCode, product.getCode())));
+    nonFullSupplyLineItem.getLossesAndAdjustments().clear();
+    fullSupplyLineItem.setRnrId(requisition.getId());
+    nonFullSupplyLineItem.setRnrId(requisition.getId());
+    lineItemMapper.insert(fullSupplyLineItem, Collections.EMPTY_LIST.toString());
+    lineItemMapper.insert(nonFullSupplyLineItem, Collections.EMPTY_LIST.toString());
+    ProgramProduct programProduct = new ProgramProduct(program, product, 1, true);
+    programProduct.setProductCategory(productCategory);
+    programProductMapper.insert(programProduct);
+  }
+
+  private Rnr generateRnr() {
+    Rnr requisition = new Rnr(new Facility(facility.getId()), new Program(program.getId()), processingPeriod1, false, MODIFIED_BY, 1L);
+    requisition.setAllocatedBudget(new BigDecimal(123.45));
+    requisition.setStatus(INITIATED);
+    requisition.setId(1L);
+    requisition.setEmergency(true);
+    return requisition;
   }
 
   @Test
@@ -278,6 +320,26 @@ public class RequisitionMapperIT {
 
     assertThat(updatedRequisition.getId(), is(requisition.getId()));
     assertEquals("xyz", updatedRequisition.getClientSubmittedNotes());
+  }
+
+  @Test
+  public void shouldSaveClientPeriod() throws Exception {
+    Rnr requisition = insertRequisition(processingPeriod1, program, INITIATED, false, facility, supervisoryNode, modifiedDate);
+
+    DateTime dateTime = new DateTime();
+    Date actualPeriodStartDate = dateTime.withDate(2016,3,8).toDate();
+    Date actualPeriodEndDate = dateTime.withDate(2016,3,28).toDate();
+
+    requisition.setActualPeriodStartDate(actualPeriodStartDate);
+    requisition.setActualPeriodEndDate(actualPeriodEndDate);
+
+    mapper.saveClientPeriod(requisition);
+
+    Rnr updatedRequisition = mapper.getById(requisition.getId());
+
+    assertThat(updatedRequisition.getId(), is(requisition.getId()));
+    assertEquals(actualPeriodStartDate, updatedRequisition.getActualPeriodStartDate());
+    assertEquals(actualPeriodEndDate, updatedRequisition.getActualPeriodEndDate());
   }
 
   @Test
@@ -608,9 +670,9 @@ public class RequisitionMapperIT {
   public void shouldGetApprovedRequisitionsInAscOrderOfFacilityName() throws SQLException {
     Long userId = insertUser();
     insertRoleForApprovedRequisitions(facility.getId(), userId);
-    Facility facility1 = make(a(FacilityBuilder.defaultFacility, with(name, "village pharmacy"), with(FacilityBuilder.code, "VP")));
+    Facility facility1 = make(a(FacilityBuilder.defaultFacility, with(FacilityBuilder.name, "village pharmacy"), with(FacilityBuilder.code, "VP")));
     facilityMapper.insert(facility1);
-    Facility facility2 = make(a(FacilityBuilder.defaultFacility, with(name, "central hospital"), with(FacilityBuilder.code, "CH")));
+    Facility facility2 = make(a(FacilityBuilder.defaultFacility, with(FacilityBuilder.name, "central hospital"), with(FacilityBuilder.code, "CH")));
     facilityMapper.insert(facility2);
     Rnr requisition1 = insertRequisition(processingPeriod1, program, SUBMITTED, false, facility1, supervisoryNode, modifiedDate);
     Rnr requisition2 = insertRequisition(processingPeriod3, program, SUBMITTED, false, facility2, supervisoryNode, modifiedDate);
@@ -635,9 +697,9 @@ public class RequisitionMapperIT {
   public void shouldGetApprovedRequisitionsInAscOrderOfFacilityCode() throws SQLException {
     Long userId = insertUser();
     insertRoleForApprovedRequisitions(facility.getId(), userId);
-    Facility facility1 = make(a(FacilityBuilder.defaultFacility, with(name, "village pharmacy"), with(FacilityBuilder.code, "VP")));
+    Facility facility1 = make(a(FacilityBuilder.defaultFacility, with(FacilityBuilder.name, "village pharmacy"), with(FacilityBuilder.code, "VP")));
     facilityMapper.insert(facility1);
-    Facility facility2 = make(a(FacilityBuilder.defaultFacility, with(name, "central hospital"), with(FacilityBuilder.code, "CH")));
+    Facility facility2 = make(a(FacilityBuilder.defaultFacility, with(FacilityBuilder.name, "central hospital"), with(FacilityBuilder.code, "CH")));
     facilityMapper.insert(facility2);
     Rnr requisition1 = insertRequisition(processingPeriod1, program, SUBMITTED, false, facility1, supervisoryNode, modifiedDate);
     Rnr requisition2 = insertRequisition(processingPeriod3, program, SUBMITTED, false, facility2, supervisoryNode, modifiedDate);
@@ -660,9 +722,9 @@ public class RequisitionMapperIT {
 
   @Test
   public void shouldGetApprovedRequisitionsInAscOrderOfSupplyingDepotName() throws SQLException {
-    Facility facility1 = make(a(FacilityBuilder.defaultFacility, with(name, "village pharmacy"), with(FacilityBuilder.code, "VP")));
+    Facility facility1 = make(a(FacilityBuilder.defaultFacility, with(FacilityBuilder.name, "village pharmacy"), with(FacilityBuilder.code, "VP")));
     facilityMapper.insert(facility1);
-    Facility facility2 = make(a(FacilityBuilder.defaultFacility, with(name, "central hospital"), with(FacilityBuilder.code, "CH")));
+    Facility facility2 = make(a(FacilityBuilder.defaultFacility, with(FacilityBuilder.name, "central hospital"), with(FacilityBuilder.code, "CH")));
     facilityMapper.insert(facility2);
     Long userId = insertUser();
     insertRoleForApprovedRequisitions(facility1.getId(), userId);
@@ -890,6 +952,58 @@ public class RequisitionMapperIT {
 
     assertThat(rnrSignatures.size(), is(1));
     assertThat(rnrSignatures.get(0).getText(), is("Mystique"));
+  }
+
+  @Test
+  public void shouldFindPeriodByPhysicalInventoryDateAndProgramAndFacility() {
+    ProcessingPeriod period = insertPeriod("Period", processingSchedule, DateUtil.parseDate("2020-10-20", DateUtil.FORMAT_DATE),
+        DateUtil.parseDate("2020-11-20", DateUtil.FORMAT_DATE));
+    insertRequisition(period, program, INITIATED, false, facility, supervisoryNode, modifiedDate);
+    assertThat(mapper.findNormalRnrByPeriodAndProgram("2020-10", "2020-11", program.getId(), facility.getId()).size(), is(1));
+  }
+
+  @Test
+  public void shouldNotFindPeriodWithSameDateButDiffFacility() {
+    ProcessingPeriod period = insertPeriod("Period", processingSchedule, DateUtil.parseDate("2020-10-20", DateUtil.FORMAT_DATE),
+        DateUtil.parseDate("2020-11-20", DateUtil.FORMAT_DATE));
+    insertRequisition(period, program, INITIATED, false, facility, supervisoryNode, modifiedDate);
+    assertThat(mapper.findNormalRnrByPeriodAndProgram("2020-10", "2020-11", program.getId(), 1000L).size(), is(0));
+  }
+
+  @Test
+  public void shouldNotFindPeriodNotByPhysicalInventoryDate() {
+    ProcessingPeriod period = insertPeriod("Period", processingSchedule, DateUtil.parseDate("2020-9-20", DateUtil.FORMAT_DATE),
+        DateUtil.parseDate("2020-10-20", DateUtil.FORMAT_DATE));
+    insertRequisition(period, program, INITIATED, false, facility, supervisoryNode, modifiedDate);
+    assertThat(mapper.findNormalRnrByPeriodAndProgram("2020-10", "2020-11", program.getId(), facility.getId()).size(), is(0));
+  }
+
+  @Test
+  public void shouldNotGetEmergencyRnr() {
+    ProcessingPeriod period = insertPeriod("Period", processingSchedule, DateUtil.parseDate("2020-10-20", DateUtil.FORMAT_DATE),
+      DateUtil.parseDate("2020-11-20", DateUtil.FORMAT_DATE));
+    insertRequisition(period, program, INITIATED, true, facility, supervisoryNode, modifiedDate);
+    assertThat(mapper.findNormalRnrByPeriodAndProgram("2020-10", "2020-11", program.getId(), facility.getId()).size(), is(0));
+  }
+
+  @Test
+  public void shouldReturnPeriodDateInRequisitions() {
+    Rnr requisition = insertRequisition(processingPeriod1, program, INITIATED, false, facility, supervisoryNode, modifiedDate);
+
+    DateTime dateTime = new DateTime();
+    Date actualPeriodStartDate = dateTime.withDate(2016,3,8).toDate();
+    Date actualPeriodEndDate = dateTime.withDate(2016,3,28).toDate();
+
+    requisition.setActualPeriodStartDate(actualPeriodStartDate);
+    requisition.setActualPeriodEndDate(actualPeriodEndDate);
+
+    mapper.saveClientPeriod(requisition);
+
+    List<Rnr> rnrs = mapper.getRequisitionsWithLineItemsByFacility(facility);
+
+    assertThat(rnrs.size(), is(1));
+    assertThat(rnrs.get(0).getActualPeriodStartDate(), is(actualPeriodStartDate));
+    assertThat(rnrs.get(0).getActualPeriodEndDate(), is(actualPeriodEndDate));
   }
 
   private void insertRoleForApprovedRequisitions(Long facilityId, Long userId) throws SQLException {

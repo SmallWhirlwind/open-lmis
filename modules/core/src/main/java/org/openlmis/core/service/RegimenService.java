@@ -38,6 +38,10 @@ public class RegimenService {
     repository.save(regimens, userId);
   }
 
+  public void save(Regimen regimen, Long userId) {
+    repository.save(regimen, userId);
+  }
+
   public List<Regimen> getByProgram(Long programId) {
     return repository.getByProgram(programId);
   }
@@ -62,5 +66,25 @@ public class RegimenService {
 
   public List<RegimenConstituentDosage> getAllRegimenConstituentDosages(){
         return repository.getAllRegimenConstituentsDosages();
+  }
+
+  public List getRegimensByCategory(RegimenCategory category) {
+    return repository.getRegimensByCategory(category);
+  }
+
+  public RegimenCategory queryRegimenCategoryByName(String name) {
+    return repository.getRegimenCategoryByName(name);
+  }
+
+  public Object getRegimensByCategoryIdAndName(Long categoryId, String name) {
+    return repository.getRegimensByCategoryIdAndName(categoryId, name);
+  }
+
+  public List<Regimen> listAll() {
+     return repository.getAllRegimens();
+  }
+
+  public List<Regimen> getRegimensByProgramAndIsCustom(Long programId, boolean isCustom) {
+    return repository.getRegimensByProgramAndIsCustom(programId, isCustom);
   }
 }

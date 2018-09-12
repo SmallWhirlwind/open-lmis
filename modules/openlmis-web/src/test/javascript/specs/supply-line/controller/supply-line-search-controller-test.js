@@ -37,7 +37,7 @@ describe("Supply Line Search Controller", function () {
     expect(scope.supplyLines).toEqual([supplyLine]);
     expect(scope.pagination).toEqual(pagination);
     expect(scope.currentPage).toEqual(1);
-    expect(scope.showResults).toEqual(true);
+    expect(scope.showCloseButton).toEqual(true);
     expect(scope.totalItems).toEqual(100);
   });
 
@@ -55,7 +55,7 @@ describe("Supply Line Search Controller", function () {
     expect(scope.supplyLines).toEqual([supplyLine]);
     expect(scope.pagination).toEqual(pagination);
     expect(scope.currentPage).toEqual(1);
-    expect(scope.showResults).toEqual(true);
+    expect(scope.showCloseButton).toEqual(true);
     expect(scope.totalItems).toEqual(100);
   });
 
@@ -68,19 +68,21 @@ describe("Supply Line Search Controller", function () {
     expect($httpBackend.expectGET).not.toHaveBeenCalledWith('/supplyLines/search.json?column=supervisoryNode&page=1&searchParam=Nod');
   });
 
-  it('should clear search param and result list', function () {
+  it('should clear search param and show all result list', function () {
     var supplyLine = {program: {name: "P1"}, supplyingFacility: {name: "Fac 1"}, supervisoryNode: {name: "Node 1"}, description: "desc"};
     scope.query = "query";
     scope.totalItems = 100;
     scope.supplyLines = [supplyLine];
-    scope.showResults = true;
+    scope.showCloseButton = true;
+    var searchSpy = spyOn(scope, 'search');
 
     scope.clearSearch();
 
-    expect(scope.showResults).toEqual(false);
+    expect(scope.showCloseButton).toEqual(false);
     expect(scope.query).toEqual("");
     expect(scope.totalItems).toEqual(0);
     expect(scope.supplyLines).toEqual([]);
+    expect(searchSpy).toHaveBeenCalledWith(1,'%');
   });
 
   it('should trigger search on enter key', function () {
@@ -151,5 +153,21 @@ describe("Supply Line Search Controller", function () {
 
     expect(navigateBackService.setData).toHaveBeenCalledWith({query: "node", selectedSearchOption: "supervisory" });
     expect(location.path).toHaveBeenCalledWith('edit/1');
+  });
+
+  it('should search % on loaded page', function () {
+    var searchSpy = spyOn(scope, 'search');
+    scope.currentPage = 1;
+    scope.$digest();
+
+    expect(searchSpy).toHaveBeenCalledWith(1,'%');
+  });
+
+  it('should trigger search % when change SearchType ', function () {
+    scope.searchOption = {value: "facility", name: "label.supplying.facility"};
+    var searchSpy = spyOn(scope, 'search');
+    scope.selectSearchType(scope.searchOption);
+
+    expect(searchSpy).toHaveBeenCalledWith(1,'%');
   });
 });

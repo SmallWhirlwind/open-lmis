@@ -175,6 +175,7 @@ public class CalculationService {
 
   private void calculateForNonFullSupply(Rnr requisition) {
     for (RnrLineItem lineItem : requisition.getNonFullSupplyLineItems()) {
+
       lineItem.validateNonFullSupply();
 
       lineItem.calculatePacksToShip();

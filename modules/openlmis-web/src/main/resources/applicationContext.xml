@@ -25,14 +25,15 @@
         http://www.springframework.org/schema/aop/spring-aop-4.1.xsd
       ">
 
-    <context:annotation-config  />
-    <mvc:annotation-driven  />
-    <aop:aspectj-autoproxy expose-proxy="false" />
+    <context:annotation-config/>
+    <mvc:annotation-driven/>
+    <aop:aspectj-autoproxy expose-proxy="false"/>
 
 
     <bean class="org.openlmis.config.MySwaggerConfig"></bean>
+    <bean class="org.springframework.web.client.RestTemplate"></bean>
 
-    <context:component-scan base-package="org.openlmis.web" />
+    <context:component-scan base-package="org.openlmis.web"/>
 
     <bean id="applicationProperties" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
 
@@ -40,7 +41,7 @@
         <property name="locations">
             <list>
                 <value>classpath:/default.properties</value>
-                <value>classpath:${environmentName}/app.properties</value>
+                <value>classpath:/app.properties</value>
                 <value>classpath:/database-config.properties</value>
             </list>
         </property>
@@ -62,6 +63,7 @@
         <property name="cookieName" value="lang"/>
         <property name="defaultLocale" value="${defaultLocale}"/>
         <property name="cookieMaxAge" value="0x7fffffff"/>
+        <property name="cookieHttpOnly" value="true" />
     </bean>
 
     <import resource="classpath:/springSecurityContext.xml"/>
@@ -72,11 +74,11 @@
     <import resource="classpath:/applicationContext-reporting.xml"/>
     <import resource="classpath:/applicationContext-report.xml"/>
     <import resource="classpath:/applicationContext-distribution.xml"/>
-    <import resource="classpath:/applicationContext-equipment.xml" />
-    <import resource="classpath:/applicationContext-help.xml" />
+    <import resource="classpath:/applicationContext-equipment.xml"/>
+    <import resource="classpath:/applicationContext-help.xml"/>
     <import resource="classpath:/applicationContext-demographics.xml"/>
-    <import resource="classpath:/applicationContext-vaccine.xml" />
-    <import resource="classpath:/applicationContext-stock-management.xml" />
+    <import resource="classpath:/applicationContext-vaccine.xml"/>
+    <import resource="classpath:/applicationContext-stock-management.xml"/>
 
     <bean id="userAuthenticationProvider" class="org.openlmis.authentication.web.UserAuthenticationProvider"/>
 
@@ -105,6 +107,7 @@
                 <property name="paramName" value="locale"/>
             </bean>
         </mvc:interceptor>
+
     </mvc:interceptors>
 
     <bean id="uploadBeansMap" class="java.util.HashMap">
@@ -119,6 +122,17 @@
                         <property name="recordHandler" ref="productPersistenceHandler"/>
                     </bean>
                 </entry>
+
+                <entry key="updateProduct">
+                    <bean class="org.openlmis.web.model.UploadBean">
+                        <property name="displayName" value="label.products"/>
+                        <property name="importableClass">
+                            <value type="java.lang.Class">org.openlmis.core.domain.Product</value>
+                        </property>
+                        <property name="recordHandler" ref="productsUpdateHandler"/>
+                    </bean>
+                </entry>
+
                 <entry key="facility">
                     <bean class="org.openlmis.web.model.UploadBean">
                         <property name="displayName" value="menu.header.facilities"/>

@@ -11,6 +11,7 @@
 package org.openlmis.restapi.service;
 
 import org.apache.commons.codec.binary.Base64;
+import org.joda.time.DateTime;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -18,16 +19,21 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.BlockJUnit4ClassRunner;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.openlmis.core.builder.FacilityBuilder;
 import org.openlmis.core.domain.*;
 import org.openlmis.core.exception.DataException;
+import org.openlmis.core.repository.SyncUpHashRepository;
 import org.openlmis.core.service.*;
+import org.openlmis.core.utils.DateUtil;
 import org.openlmis.db.categories.UnitTests;
 import org.openlmis.order.domain.Order;
 import org.openlmis.order.service.OrderService;
 import org.openlmis.restapi.builder.ReportBuilder;
+import org.openlmis.restapi.domain.RegimenLineItemForRest;
 import org.openlmis.restapi.domain.ReplenishmentDTO;
 import org.openlmis.restapi.domain.Report;
 import org.openlmis.rnr.builder.PatientQuantificationsBuilder;
@@ -41,14 +47,14 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import org.powermock.modules.junit4.PowerMockRunnerDelegate;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 import static com.natpryce.makeiteasy.MakeItEasy.*;
 import static java.util.Arrays.asList;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
@@ -74,11 +80,15 @@ public class RestRequisitionServiceTest {
   public ExpectedException expectedException = ExpectedException.none();
 
   @Mock
+  ProgramSupportedService programSupportedService;
+  @Mock
   RequisitionService requisitionService;
   @Mock
   UserService userService;
   @Mock
   FacilityApprovedProductService facilityApprovedProductService;
+  @Mock
+  StaticReferenceDataService staticReferenceDataService;
   @InjectMocks
   RestRequisitionService service;
   Rnr requisition;
@@ -100,9 +110,14 @@ public class RestRequisitionServiceTest {
   @Mock
   private ProgramService programService;
   @Mock
+  private RegimenService regimenService;
+  @Mock
   private ProductService productService;
+  @Mock
+  private SyncUpHashRepository syncUpHashRepository;
 
   private Facility facility;
+  private Program program;
 
   @Before
   public void setUp() throws Exception {
@@ -126,7 +141,7 @@ public class RestRequisitionServiceTest {
     setUpRequisitionReportBeforeSubmit();
 
     RegimenLineItem reportRegimenLineItem = make(a(defaultRegimenLineItem, with(patientsOnTreatment, 10), with(patientsStoppedTreatment, 5)));
-    report.setRegimens(asList(reportRegimenLineItem));
+    report.setRegimens(asList(RegimenLineItemForRest.convertFromRegimenLineItem(reportRegimenLineItem)));
     service.submitReport(report, 1L);
 
     verify(facilityService).getOperativeFacilityByCode(DEFAULT_AGENT_CODE);
@@ -134,7 +149,6 @@ public class RestRequisitionServiceTest {
     verify(requisitionService).initiate(facility, new Program(PROGRAM_ID), 1L, false, null);
     verify(requisitionService).submit(requisition);
     assertThat(requisition.getRegimenLineItems().get(0).getPatientsOnTreatment(), is(10));
-    assertThat(requisition.getRegimenLineItems().get(0).getPatientsStoppedTreatment(), is(5));
   }
 
 
@@ -159,6 +173,36 @@ public class RestRequisitionServiceTest {
     verify(requisitionService, times(1)).updateClientFields(requisition);
   }
 
+  @Test
+  public void shouldSaveClientPeriodWhenPeriodDateIsSet() throws
+          Exception {
+    when(staticReferenceDataService.getBoolean("toggle.sync.period.date.for.rnr")).thenReturn(true);
+
+    setUpRequisitionReportBeforeSubmit();
+    Date actualPeriodDate = new Date();
+    report.setActualPeriodStartDate(DateUtil.formatDate(actualPeriodDate));
+    report.setActualPeriodEndDate(DateUtil.formatDate(actualPeriodDate));
+
+    service.submitReport(report, 1L);
+
+    verify(requisitionService, times(1)).saveClientPeriod(requisition);
+  }
+
+  @Test
+  public void shouldNotSaveClientPeriodWhenToggleOff() throws
+          Exception {
+    when(staticReferenceDataService.getBoolean("toggle.sync.period.date.for.rnr")).thenReturn(false);
+
+    setUpRequisitionReportBeforeSubmit();
+    Date actualPeriodDate = new Date();
+    report.setActualPeriodStartDate(DateUtil.formatDate(actualPeriodDate));
+    report.setActualPeriodEndDate(DateUtil.formatDate(actualPeriodDate));
+
+    service.submitReport(report, 1L);
+
+    verify(requisitionService, times(0)).saveClientPeriod(requisition);
+  }
+
   private void setUpRequisitionReportBeforeSubmit() throws Exception {
     RnrLineItem rnrLineItem = make(a(defaultRnrLineItem, with(productCode, "P10")));
     List<RnrLineItem> products = asList(rnrLineItem);
@@ -176,9 +220,10 @@ public class RestRequisitionServiceTest {
 
     ProgramSupported programSupported = make(a(defaultProgramSupported));
     facility = make(a(defaultFacility, with(facilityId, facility_id), with(programSupportedList, asList(programSupported)), with(virtualFacility, true)));
+    program = new Program(PROGRAM_ID);
 
     when(facilityService.getOperativeFacilityByCode(DEFAULT_AGENT_CODE)).thenReturn(facility);
-    when(programService.getValidatedProgramByCode(DEFAULT_PROGRAM_CODE)).thenReturn(new Program(PROGRAM_ID));
+    when(programService.getValidatedProgramByCode(DEFAULT_PROGRAM_CODE)).thenReturn(program);
     when(requisitionService.initiate(facility, new Program(PROGRAM_ID), user.getId(), false, null)).thenReturn(requisition);
     when(requisitionService.save(requisition)).thenReturn(requisition);
     when(productService.getByCode(validProductCode)).thenReturn(new Product());
@@ -199,8 +244,12 @@ public class RestRequisitionServiceTest {
             addLineItem(new PatientQuantificationLineItem("adults", new Integer(5))).build();
 
     RegimenLineItem reportRegimenLineItem = make(a(defaultRegimenLineItem, with(patientsOnTreatment, 10), with(patientsStoppedTreatment, 5)));
-    report.setRegimens(asList(reportRegimenLineItem));
+    report.setRegimens(asList(RegimenLineItemForRest.convertFromRegimenLineItem(reportRegimenLineItem)));
     report.setPatientQuantifications(patientQuantifications);
+
+    RegimenCategory category = reportRegimenLineItem.getCategory();
+    when(regimenService.queryRegimenCategoryByName(reportRegimenLineItem.getCategoryName())).thenReturn(category);
+    when(regimenService.getRegimensByCategory(category)).thenReturn(asList(category));
     service.submitReport(report, 1L);
 
     assertThat(requisition.getPatientQuantifications().get(0).getTotal(), is(10));
@@ -210,6 +259,18 @@ public class RestRequisitionServiceTest {
 
   @Test
   public void sdpShouldCreateAndSubmitARequisition() throws Exception{
+    Facility facility = setupSDPrequisition();
+
+    service.submitSdpReport(report, 1L);
+
+    verify(facilityService).getOperativeFacilityByCode(DEFAULT_AGENT_CODE);
+    verify(programService).getValidatedProgramByCode(DEFAULT_PROGRAM_CODE);
+    verify(requisitionService).initiate(facility, new Program(PROGRAM_ID), 1L, false, null);
+    verify(requisitionService).submit(requisition);
+    assertThat(requisition.getRegimenLineItems().get(0).getPatientsOnTreatment(), is(10));
+  }
+
+  private Facility setupSDPrequisition() throws Exception {
     RnrLineItem rnrLineItem = make(a(defaultRnrLineItem, with(productCode, "P10")));
     List<RnrLineItem> products = asList(rnrLineItem);
     requisition.setFullSupplyLineItems(products);
@@ -218,10 +279,9 @@ public class RestRequisitionServiceTest {
     RegimenLineItem regimenLineItem = make(a(defaultRegimenLineItem));
     requisition.setRegimenLineItems(asList(regimenLineItem));
 
-
     report.setProducts(products);
     RegimenLineItem reportRegimenLineItem = make(a(defaultRegimenLineItem, with(patientsOnTreatment, 10), with(patientsStoppedTreatment, 5)));
-    report.setRegimens(asList(reportRegimenLineItem));
+    report.setRegimens(asList(RegimenLineItemForRest.convertFromRegimenLineItem(reportRegimenLineItem)));
     report.setPeriodId(1L);
     report.setEmergency(false);
 
@@ -240,15 +300,7 @@ public class RestRequisitionServiceTest {
     when(rnrTemplateService.fetchProgramTemplateForRequisition(any(Long.class))).thenReturn(new ProgramRnrTemplate(new ArrayList<RnrColumn>()));
 
     when(requisitionService.submit(requisition)).thenReturn(requisition);
-
-    service.submitSdpReport(report, 1L);
-
-    verify(facilityService).getOperativeFacilityByCode(DEFAULT_AGENT_CODE);
-    verify(programService).getValidatedProgramByCode(DEFAULT_PROGRAM_CODE);
-    verify(requisitionService).initiate(facility, new Program(PROGRAM_ID), 1L, false, null);
-    verify(requisitionService).submit(requisition);
-    assertThat(requisition.getRegimenLineItems().get(0).getPatientsOnTreatment(), is(10));
-    assertThat(requisition.getRegimenLineItems().get(0).getPatientsStoppedTreatment(), is(5));
+    return facility;
   }
 
   @Test
@@ -265,7 +317,7 @@ public class RestRequisitionServiceTest {
 
     report.setProducts(products);
     RegimenLineItem reportRegimenLineItem = make(a(defaultRegimenLineItem, with(patientsOnTreatment, 10), with(patientsStoppedTreatment, 5)));
-    report.setRegimens(asList(reportRegimenLineItem));
+    report.setRegimens(asList(RegimenLineItemForRest.convertFromRegimenLineItem(reportRegimenLineItem)));
     report.setPeriodId(1L);
     report.setEmergency(false);
 
@@ -292,8 +344,9 @@ public class RestRequisitionServiceTest {
   public void shouldThrowErrorIfPeriodValidationFails() throws Exception {
     expectedException.expect(DataException.class);
     expectedException.expectMessage("rnr.error");
+    when(requisitionService.getLastRegularRequisition(any(Facility.class), any(Program.class))).thenReturn(new Rnr());
 
-    doThrow(new DataException("rnr.error")).when(restRequisitionCalculator).validatePeriod(any(Facility.class), any(Program.class));
+    doThrow(new DataException("rnr.error")).when(restRequisitionCalculator).validatePeriod(any(Facility.class), any(Program.class), any(Date.class), any(Date.class));
 
     service.submitReport(report, 1l);
 
@@ -322,6 +375,7 @@ public class RestRequisitionServiceTest {
   public void shouldThrowErrorIfProductValidationFails() throws Exception {
     expectedException.expect(DataException.class);
     expectedException.expectMessage("rnr.error");
+    when(requisitionService.getLastRegularRequisition(any(Facility.class), any(Program.class))).thenReturn(new Rnr());
 
     doThrow(new DataException("rnr.error")).when(restRequisitionCalculator).validateProducts(any(List.class), any(Rnr.class));
 
@@ -408,13 +462,79 @@ public class RestRequisitionServiceTest {
   }
 
   @Test
-  public void shouldThrowErrorIfInvalidRegimenIsProvided() throws Exception {
+  public void shouldSaveRegimenAndAddRegimenLineItemToRnrWhenThereIsANewRegime() throws Exception {
     Program program = new Program();
     report.setProducts(new ArrayList<RnrLineItem>());
     RegimenLineItem reportRegimenLineItem = make(a(defaultRegimenLineItem, with(patientsOnTreatment, 10), with(patientsStoppedTreatment, 5)));
-    report.setRegimens(asList(reportRegimenLineItem));
+    report.setRegimens(asList(RegimenLineItemForRest.convertFromRegimenLineItem(reportRegimenLineItem)));
 
     when(programService.getValidatedProgramByCode(report.getProgramCode())).thenReturn(program);
+
+    Facility facility = make(a(FacilityBuilder.defaultFacility, with(FacilityBuilder.virtualFacility, true)));
+    when(facilityService.getOperativeFacilityByCode(report.getAgentCode())).thenReturn(facility);
+    when(staticReferenceDataService.getBoolean("toggle.mmia.custom.regimen")).thenReturn(true);
+
+    Rnr rnr = new Rnr();
+    rnr.setId(2L);
+    rnr.setProgram(program);
+    when(requisitionService.initiate(facility, program, 3l, false, null)).thenReturn(rnr);
+    when(rnrTemplateService.fetchProgramTemplateForRequisition(any(Long.class))).thenReturn(new ProgramRnrTemplate(new ArrayList<RnrColumn>()));
+
+    RegimenCategory category = reportRegimenLineItem.getCategory();
+    category.setId(1l);
+    when(regimenService.queryRegimenCategoryByName(anyString())).thenReturn(category);
+    when(regimenService.getRegimensByCategory(category)).thenReturn(asList(category));
+    when(regimenService.getRegimensByCategoryIdAndName(anyLong(), anyString())).thenReturn(null);
+    when(regimenService.listAll()).thenReturn(new ArrayList<Regimen>());
+    service.submitReport(report, 3l);
+
+    ArgumentCaptor<Regimen> argument = ArgumentCaptor.forClass(Regimen.class);
+    verify(regimenService).save(argument.capture(), anyLong());
+    assertTrue(argument.getValue().isCustom());
+    assertThat(rnr.getRegimenLineItems().size(), is(1));
+    assertThat(rnr.getRegimenLineItems().get(0).getRnrId(), is(2L));
+    assertThat(rnr.getRegimenLineItems().get(0).getCode(), is("001"));
+  }
+
+  @Test
+  public void shouldNotSaveRegimenAndAddRegimenLineItemToRnrWhenThereIsARegimeNotIncludedInTemplateButInDB() throws Exception {
+    Program program = new Program();
+    report.setProducts(new ArrayList<RnrLineItem>());
+    RegimenLineItem reportRegimenLineItem = make(a(defaultRegimenLineItem, with(patientsOnTreatment, 10), with(patientsStoppedTreatment, 5)));
+    report.setRegimens(asList(RegimenLineItemForRest.convertFromRegimenLineItem(reportRegimenLineItem)));
+
+    when(programService.getValidatedProgramByCode(report.getProgramCode())).thenReturn(program);
+
+    Facility facility = make(a(FacilityBuilder.defaultFacility, with(FacilityBuilder.virtualFacility, true)));
+    when(facilityService.getOperativeFacilityByCode(report.getAgentCode())).thenReturn(facility);
+    when(staticReferenceDataService.getBoolean("toggle.mmia.custom.regimen")).thenReturn(true);
+
+    Rnr rnr = new Rnr();
+    rnr.setProgram(program);
+    when(requisitionService.initiate(facility, program, 3l, false, null)).thenReturn(rnr);
+    when(rnrTemplateService.fetchProgramTemplateForRequisition(any(Long.class))).thenReturn(new ProgramRnrTemplate(new ArrayList<RnrColumn>()));
+
+    RegimenCategory category = reportRegimenLineItem.getCategory();
+    category.setId(1l);
+    when(regimenService.queryRegimenCategoryByName(anyString())).thenReturn(category);
+    when(regimenService.getRegimensByCategory(category)).thenReturn(asList(category));
+    when(regimenService.getRegimensByCategoryIdAndName(anyLong(), anyString())).thenReturn(new Regimen());
+    service.submitReport(report, 3l);
+    verify(regimenService, never()).save(any(Regimen.class), anyLong());
+    assertThat(rnr.getRegimenLineItems().size(), is(1));
+  }
+
+  @Test
+  public void shouldThrowErrorIfInvalidRegimenIsProvidedWhenToggleOff() throws Exception {
+    Program program = new Program();
+    report.setProducts(new ArrayList<RnrLineItem>());
+    RegimenLineItem reportRegimenLineItem = make(a(defaultRegimenLineItem, with(patientsOnTreatment, 10), with(patientsStoppedTreatment, 5)));
+    report.setRegimens(asList(RegimenLineItemForRest.convertFromRegimenLineItem(reportRegimenLineItem)));
+
+
+    when(programService.getValidatedProgramByCode(report.getProgramCode())).thenReturn(program);
+    when(staticReferenceDataService.getBoolean("toggle.mmia.custom.regimen")).thenReturn(false);
+
 
     Facility facility = make(a(FacilityBuilder.defaultFacility, with(FacilityBuilder.virtualFacility, true)));
     when(facilityService.getOperativeFacilityByCode(report.getAgentCode())).thenReturn(facility);
@@ -674,6 +794,84 @@ public class RestRequisitionServiceTest {
     assertThat(requisition.getRnrSignatures().get(1).getCreatedBy(), is(user.getId()));
     assertThat(requisition.getRnrSignatures().get(1).getModifiedBy(), is(user.getId()));
     verify(requisitionService).insertRnrSignatures(requisition);
+  }
+
+  @Test
+  public void shouldSaveReportWhenHashDoesNotExist() throws Exception {
+    //given
+    setUpRequisitionReportBeforeSubmit();
+    Mockito.when(syncUpHashRepository.hashExists(anyString())).thenReturn(false);
+
+    //when
+    service.submitReport(report, 1L);
+
+    //then
+    verify(syncUpHashRepository, times(1)).save(anyString());
+  }
+
+  @Test
+  public void shouldSaveEmergencyReportWhenHashDoesNotExist() throws Exception {
+    //given
+    setupSDPrequisition();
+    Mockito.when(syncUpHashRepository.hashExists(anyString())).thenReturn(false);
+
+    //when
+    service.submitSdpReport(report, 1L);
+
+    //then
+    verify(syncUpHashRepository, times(1)).save(anyString());
+  }
+
+  @Test
+  public void shouldNotSaveEmergencyReportWhenHashDoesNotExist() throws Exception {
+    //given
+    setupSDPrequisition();
+    Mockito.when(syncUpHashRepository.hashExists(anyString())).thenReturn(true);
+
+    //when
+    service.submitSdpReport(report, 1L);
+
+    //then
+    verify(syncUpHashRepository, never()).save(anyString());
+  }
+
+
+  @Test
+  public void shouldNotSaveReportWhenHashExists() throws Exception {
+    //given
+    setUpRequisitionReportBeforeSubmit();
+    Mockito.when(syncUpHashRepository.hashExists(anyString())).thenReturn(true);
+
+    //when
+    service.submitReport(report, 1L);
+
+    //then
+    verify(syncUpHashRepository, never()).save(anyString());
+  }
+
+  @Test
+  public void shouldNotThrowExceptionIfNoFullSupplySpecifiedForProductInSDPReport() throws Exception {
+    setupSDPrequisition();
+    for (RnrLineItem rnrLineItem: report.getProducts()) {
+      rnrLineItem.setFullSupply(null);
+    }
+    service.submitSdpReport(report, 1L);
+    //No exception
+  }
+
+  @Test
+  public void shouldUpdateProgramGoLiveDateWhenLastRequisitionNotExists() throws Exception {
+    Mockito.when(staticReferenceDataService.getBoolean("toggle.skip.initial.requisition.validation")).thenReturn(true);
+
+    setUpRequisitionReportBeforeSubmit();
+    when(requisitionService.getLastRegularRequisition(facility, program)).thenReturn(null);
+    report.setActualPeriodStartDate("2016-05-17 09:00:00");
+
+    service.submitReport(report, 1L);
+
+    ArgumentCaptor<Date> updateTimeCapture = ArgumentCaptor.forClass(Date.class);
+    verify(programSupportedService).updateProgramSupportedStartDate(eq(facility.getId()), eq(program.getId()), updateTimeCapture.capture());
+    assertThat(new DateTime(updateTimeCapture.getValue()), is(new DateTime(2016, 5, 21, 0 ,0)));
   }
 
   private List<RnrColumn> getRnrColumns() {

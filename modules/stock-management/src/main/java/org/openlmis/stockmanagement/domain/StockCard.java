@@ -19,8 +19,8 @@ import java.util.*;
 
 @Data
 @NoArgsConstructor
-@EqualsAndHashCode(callSuper=false)
-@JsonIgnoreProperties(ignoreUnknown=true)
+@EqualsAndHashCode(callSuper = false)
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class StockCard extends BaseModel {
 
   @JsonIgnore
@@ -30,8 +30,8 @@ public class StockCard extends BaseModel {
 
   private Long totalQuantityOnHand;
 
-  @JsonFormat(shape=JsonFormat.Shape.STRING, pattern="yyyy-MM-dd")
-  @JsonDeserialize(using=DateDeserializer.class)
+  @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
+  @JsonDeserialize(using = DateDeserializer.class)
   private Date effectiveDate;
 
   private String notes;
@@ -41,7 +41,7 @@ public class StockCard extends BaseModel {
   private List<LotOnHand> lotsOnHand;
 
   @JsonIgnore
-  private List<StockCardEntryKV> keyValues;
+  private List<StockCardEntryKV> extensions;
 
   @JsonIgnore
   private StockCardEntryKVReduceStrategy strategy;
@@ -56,7 +56,7 @@ public class StockCard extends BaseModel {
     this.notes = "";
     this.entries = null;
     this.lotsOnHand = null;
-    this.keyValues = new ArrayList<>();
+    this.extensions = new ArrayList<>();
     this.strategy = null;
   }
 
@@ -67,7 +67,7 @@ public class StockCard extends BaseModel {
   public Map<String, String> getCustomProps() {
     if (null == strategy) strategy = new LatestSyncedStrategy();
 
-    Map<String, String> customProps = StockManagementUtils.getKeyValueAggregate(keyValues, strategy);
+    Map<String, String> customProps = StockManagementUtils.getKeyValueAggregate(extensions, strategy);
 
     return customProps.isEmpty() ? null : customProps;
   }

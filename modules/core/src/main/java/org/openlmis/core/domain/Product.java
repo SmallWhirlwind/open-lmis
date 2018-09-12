@@ -17,6 +17,9 @@ import org.openlmis.core.exception.DataException;
 import org.openlmis.upload.Importable;
 import org.openlmis.upload.annotation.ImportField;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import static com.fasterxml.jackson.databind.annotation.JsonSerialize.Inclusion.NON_EMPTY;
 
 /**
@@ -175,10 +178,49 @@ public class Product extends BaseModel implements Importable {
   @ImportField(type = "boolean", name = "Has Been Archived")
   private Boolean archived;
 
+  @ImportField(type = "boolean", name = "Is a Kit")
+  private Boolean isKit = false;
+
+  private List<KitProduct> kitProductList = new ArrayList<>();
+
+  private final static String DEFAULT_DISPENSING_UNIT = "1";
+  private final static Integer DEFAULT_PACK_SIZE = 1;
+  private final static Integer DEFAULT_DOSES_DISPENSING_UNIT = 1;
+  private final static Boolean DEFAULT_FULL_SUPPLY = true;
+  private final static Boolean DEFAULT_TRACER = false;
+  private final static Boolean DEFAULT_ROUND_TO_ZERO = false;
+  private final static Integer DEFAULT_PACK_ROUNDING_THRESHOLD = 0;
+
   public void validate() {
     if (this.packSize <= 0) {
       throw new DataException("error.invalid.pack.size");
     }
+  }
+
+  public void setDefaultValuesForMandatoryFieldsIfNotExist() {
+    if (dispensingUnit == null) {
+      dispensingUnit = DEFAULT_DISPENSING_UNIT;
+    }
+    if (packSize == null) {
+      packSize = DEFAULT_PACK_SIZE;
+    }
+    if (dosesPerDispensingUnit == null) {
+      dosesPerDispensingUnit = DEFAULT_DOSES_DISPENSING_UNIT;
+    }
+    if (fullSupply == null) {
+      fullSupply = DEFAULT_FULL_SUPPLY;
+    }
+    if (tracer == null) {
+      tracer = DEFAULT_TRACER;
+    }
+    if (roundToZero == null) {
+      roundToZero = DEFAULT_ROUND_TO_ZERO;
+    }
+    if (packRoundingThreshold == null) {
+      packRoundingThreshold = DEFAULT_PACK_ROUNDING_THRESHOLD;
+    }
+    isKit = !kitProductList.isEmpty();
+    active = true;
   }
 
   @JsonIgnore

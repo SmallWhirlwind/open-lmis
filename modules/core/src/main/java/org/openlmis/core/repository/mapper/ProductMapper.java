@@ -11,11 +11,11 @@
 package org.openlmis.core.repository.mapper;
 
 import org.apache.ibatis.annotations.*;
-import org.openlmis.core.domain.DosageUnit;
-import org.openlmis.core.domain.Product;
-import org.openlmis.core.domain.ProductForm;
-import org.openlmis.core.domain.ProductGroup;
+import org.openlmis.core.domain.*;
 import org.springframework.stereotype.Repository;
+
+import java.util.Date;
+import java.util.List;
 
 /**
  * ProductMapper maps the Product entity to corresponding representation in database.
@@ -42,7 +42,7 @@ public interface ProductMapper {
     "expectedShelfLife," +
     "specialStorageInstructions," + "specialTransportInstructions," +
     "active," + "fullSupply," + "tracer," + "roundToZero," + "archived," +
-    "packRoundingThreshold, productGroupId," +
+    "packRoundingThreshold, productGroupId, isKit," +
     "createdBy, modifiedBy, modifiedDate)" +
     "VALUES(" +
     "#{code}," +
@@ -64,7 +64,7 @@ public interface ProductMapper {
     "#{expectedShelfLife}," +
     "#{specialStorageInstructions}," + "#{specialTransportInstructions}," +
     "#{active}," + "#{fullSupply}," + "#{tracer}," + "#{roundToZero}," + "#{archived}," +
-    "#{packRoundingThreshold},  #{productGroup.id}," +
+    "#{packRoundingThreshold},  #{productGroup.id}, #{isKit}," +
     "#{createdBy}, #{modifiedBy}, COALESCE(#{modifiedDate}, CURRENT_TIMESTAMP))")
   @Options(useGeneratedKeys = true)
   Long insert(Product product);
@@ -124,4 +124,46 @@ public interface ProductMapper {
   @Select({"SELECT COUNT(*) FROM products WHERE (LOWER(code) LIKE '%' || LOWER(#{searchParam}) || '%')",
     "OR (LOWER(primaryName) LIKE '%' || LOWER(#{searchParam}) || '%')"})
   Integer getTotalSearchResultCount(String searchParam);
+
+  @Select("SELECT * FROM products")
+  @Results({
+          @Result(property = "code", column = "code"),
+          @Result(property = "kitProductList", column = "code", javaType = List.class,
+                  many = @Many(select = "org.openlmis.core.repository.mapper.ProductMapper.getKitProductsByKitCode")),
+          @Result(
+                  property = "form", column = "formId", javaType = ProductForm.class,
+                  many = @Many(select = "org.openlmis.core.repository.mapper.ProductFormMapper.getById")),
+          @Result(
+                  property = "dosageUnit", column = "dosageUnitId", javaType = DosageUnit.class,
+                  many = @Many(select = "org.openlmis.core.repository.mapper.DosageUnitMapper.getById"))})
+  List<Product> list();
+
+  @Select("SELECT * FROM kit_products_relation WHERE kitCode = #{kitCode}")
+  List<KitProduct> getKitProductsByKitCode(String kitCode);
+
+  @Insert({"INSERT INTO kit_products_relation(kitCode, productCode, quantity)",
+      "VALUES(#{kitCode}, #{productCode}, #{quantity})"})
+  Long insertKitProduct(KitProduct kitProduct);
+
+  @Select("SELECT * FROM products WHERE modifieddate > #{date}")
+  @Results({
+      @Result(property = "code", column = "code"),
+      @Result(property = "kitProductList", column = "code", javaType = List.class,
+          many = @Many(select = "org.openlmis.core.repository.mapper.ProductMapper.getKitProductsByKitCode")),
+      @Result(
+          property = "form", column = "formId", javaType = ProductForm.class,
+          many = @Many(select = "org.openlmis.core.repository.mapper.ProductFormMapper.getById")),
+      @Result(
+          property = "dosageUnit", column = "dosageUnitId", javaType = DosageUnit.class,
+          many = @Many(select = "org.openlmis.core.repository.mapper.DosageUnitMapper.getById"))})
+  List<Product> listProductsAfterUpdatedTime(Date date);
+
+  @Update("UPDATE products SET modifiedDate=CURRENT_TIMESTAMP,ACTIVE=#{active} WHERE id=#{id} ")
+  void updateProductActiveStatus(@Param("active") boolean active, @Param("id") long id);
+
+    @Select("SELECT id,code,active from products")
+  List<Product> getAllProductWithCode();
+
+  @Delete("DELETE FROM kit_products_relation WHERE kitCode = #{kitCode} and productCode = #{productCode}")
+  void deleteKitProduct(KitProduct kitProduct);
 }

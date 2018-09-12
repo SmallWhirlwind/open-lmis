@@ -1,16 +1,13 @@
 package org.openlmis.restapi.controller;
 
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.BlockJUnit4ClassRunner;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.openlmis.core.exception.DataException;
-import org.openlmis.core.service.MessageService;
 import org.openlmis.db.categories.UnitTests;
-import org.openlmis.restapi.builder.ProgramWithProductsBuilder;
-import org.openlmis.restapi.domain.ProgramWithProducts;
 import org.openlmis.restapi.response.RestResponse;
 import org.openlmis.restapi.service.RestProgramsService;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -19,14 +16,16 @@ import org.powermock.modules.junit4.PowerMockRunnerDelegate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
-import java.util.ArrayList;
+import java.security.Principal;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static java.util.Arrays.asList;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertThat;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.openlmis.restapi.response.RestResponse.ERROR;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
-import static org.springframework.http.HttpStatus.BAD_REQUEST;
 
 @Category(UnitTests.class)
 @RunWith(PowerMockRunner.class)
@@ -34,36 +33,27 @@ import static org.springframework.http.HttpStatus.BAD_REQUEST;
 @PrepareForTest(RestResponse.class)
 public class RestProgramsControllerTest {
 
-    @InjectMocks
-    private RestProgramsController restProgramsController;
+  @Mock
+  private RestProgramsService restProgramsService;
 
-    @Mock
-    private RestProgramsService restProgramsService;
+  @InjectMocks
+  private RestProgramsController restProgramsController;
 
-    @Mock
-    private MessageService messageService;
+  private Principal principal;
 
-    @Test
-    public void shouldReturnBadRequestIfError() {
-        mockStatic(RestResponse.class);
-        DataException e = new DataException("error.facility.code.invalid");
-        when(restProgramsService.getAllProgramsWithProductsByFacilityCode("F10")).thenThrow(e);
-        ResponseEntity<RestResponse> expectedResponse = new ResponseEntity<>(new RestResponse(ERROR, "error.facility.code.invalid"), BAD_REQUEST);
-        when(RestResponse.error(e.getOpenLmisMessage(), BAD_REQUEST)).thenReturn(expectedResponse);
+  @Before
+  public void setup() {
+    principal = mock(Principal.class);
+    when(principal.getName()).thenReturn("1");
+  }
 
-        ResponseEntity<RestResponse> response = restProgramsController.getProgramWithProductsByFacility("F10");
-        assertEquals(expectedResponse, response);
-    }
+  @Test
+  public void shouldReturnSuccessIfNoExceptionThrown() {
+    List<String> programCodes = asList("P1", "P2");
+    mockStatic(RestResponse.class);
+    when(RestResponse.success(anyString())).thenReturn(new ResponseEntity<RestResponse>(HttpStatus.OK));
 
-    @Test
-    public void shouldReturnResponseWithListOfProgramsWithProducts() {
-        List<ProgramWithProducts> programsWithProducts = new ArrayList();
-        programsWithProducts.add(new ProgramWithProductsBuilder().build());
-        when(restProgramsService.getAllProgramsWithProductsByFacilityCode("F10")).thenReturn(programsWithProducts);
-
-        ResponseEntity<RestResponse> response = restProgramsController.getProgramWithProductsByFacility("F10");
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals(programsWithProducts, response.getBody().getData().get("programsWithProducts"));
-
-    }
+    ResponseEntity response = restProgramsController.associatePrograms(1L, programCodes);
+    assertThat(response.getStatusCode(), is(HttpStatus.OK));
+  }
 }

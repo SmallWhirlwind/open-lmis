@@ -421,6 +421,48 @@ public class FacilityApprovedProductMapperIT {
     assertThat(facilityTAProduct.getMaxMonthsOfStock(),is(MAX_MONTHS_OF_STOCK));
   }
 
+  @Test
+  public void shouldGetFacilityTypeApprovedProductIncludingProductsFromSubProgramsForProgramWithParentProgram() {
+    Facility facility = make(a(FacilityBuilder.defaultFacility));
+    facilityMapper.insert(facility);
+    Program program1 = make(a(defaultProgram, with(programCode, "P1")));
+    Program program2 = make(a(defaultProgram, with(programCode, "P2")));
+    programMapper.insert(program1);
+    programMapper.insert(program2);
+    programMapper.associateProgramToParent(program1.getId(), program2.getId());
+
+    Product pro01 = product("PRO01", "Primary Name 1", true);
+    ProgramProduct programProduct1 = addToProgramProduct(program1, pro01, true, category1, 1, true);
+    ProgramProduct programProduct2 = addToProgramProduct(program2, pro01, true, category1, 2, true);
+
+    insertFacilityApprovedProduct(FACILITY_TYPE_ID, programProduct1);
+    insertFacilityApprovedProduct(FACILITY_TYPE_ID, programProduct2);
+
+    List<FacilityTypeApprovedProduct> facilityTypeApprovedProducts = mapper.getFullSupplyProductsByProgramAndSubprograms(facility.getId(), program2.getId());
+
+    assertEquals(2, facilityTypeApprovedProducts.size());
+    assertEquals(programProduct1.getProduct().getCode(), facilityTypeApprovedProducts.get(0).getProgramProduct().getProduct().getCode());
+  }
+
+  @Test
+  public void shouldGetFacilityTypeApprovedProductIncludingProductsFromSubProgramsForProgramsWithNoParentProgram() {
+    Facility facility = make(a(FacilityBuilder.defaultFacility));
+    facilityMapper.insert(facility);
+    Program program1 = make(a(defaultProgram, with(programCode, "P1")));
+    programMapper.insert(program1);
+
+    Product pro01 = product("PRO01", "Primary Name 1", true);
+    ProgramProduct programProduct1 = addToProgramProduct(program1, pro01, true, category1, 1, true);
+
+    insertFacilityApprovedProduct(FACILITY_TYPE_ID, programProduct1);
+
+    List<FacilityTypeApprovedProduct> facilityTypeApprovedProducts = mapper.getFullSupplyProductsByProgramAndSubprograms(facility.getId(), program1.getId());
+
+    assertEquals(1, facilityTypeApprovedProducts.size());
+    assertEquals(programProduct1.getProduct().getCode(), facilityTypeApprovedProducts.get(0).getProgramProduct().getProduct().getCode());
+
+  }
+
   private ProductCategory category(String categoryCode, String categoryName, int categoryDisplayOrder) {
     ProductCategory productCategory = new ProductCategory(categoryCode, categoryName, categoryDisplayOrder);
     productCategoryMapper.insert(productCategory);

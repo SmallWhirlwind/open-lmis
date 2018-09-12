@@ -10,13 +10,13 @@
 
 package org.openlmis.rnr.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import org.apache.commons.collections.Predicate;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import org.openlmis.core.domain.*;
 import org.openlmis.core.exception.DataException;
 
@@ -26,9 +26,9 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+import static com.fasterxml.jackson.databind.annotation.JsonSerialize.Inclusion.NON_NULL;
 import static org.apache.commons.collections.CollectionUtils.find;
 import static org.apache.commons.collections.CollectionUtils.selectRejected;
-import static com.fasterxml.jackson.databind.annotation.JsonSerialize.Inclusion.NON_NULL;
 import static org.openlmis.rnr.domain.ProgramRnrTemplate.BEGINNING_BALANCE;
 import static org.openlmis.rnr.domain.RnrStatus.*;
 
@@ -69,8 +69,9 @@ public class Rnr extends BaseModel {
   private Date clientSubmittedTime;
   private String clientSubmittedNotes;
   private List<Comment> comments = new ArrayList<>();
-
   private List<Signature> rnrSignatures;
+  private Date actualPeriodStartDate;
+  private Date actualPeriodEndDate;
 
   public Rnr(Facility facility, Program program, ProcessingPeriod period, Boolean emergency, Long modifiedBy, Long createdBy) {
     this.facility = facility;
@@ -137,6 +138,14 @@ public class Rnr extends BaseModel {
     return totalFullSupplyCost;
   }
 
+  public int calculateRegimeTotal() {
+    int total = 0;
+    for (RegimenLineItem regimenLineItem : regimenLineItems) {
+      total += regimenLineItem.getPatientsOnTreatment();
+    }
+    return total;
+  }
+
   public void fillLineItems(List<FacilityTypeApprovedProduct> facilityTypeApprovedProducts) {
     for (FacilityTypeApprovedProduct facilityTypeApprovedProduct : facilityTypeApprovedProducts) {
       RnrLineItem requisitionLineItem = new RnrLineItem(null, facilityTypeApprovedProduct, modifiedBy, createdBy);
@@ -146,8 +155,8 @@ public class Rnr extends BaseModel {
 
   private void setBeginningBalances(Rnr previousRequisition, boolean beginningBalanceVisible) {
     if (previousRequisition == null ||
-      previousRequisition.status == INITIATED ||
-      previousRequisition.status == SUBMITTED) {
+            previousRequisition.status == INITIATED ||
+            previousRequisition.status == SUBMITTED) {
 
       if (!beginningBalanceVisible) {
         resetBeginningBalances();
@@ -254,12 +263,32 @@ public class Rnr extends BaseModel {
     copyCreatorEditableFieldsForRegimen(rnr, regimenTemplate);
   }
 
+  public void copyCreatorEditableFieldsSkipValidate(Rnr rnr, ProgramRnrTemplate rnrTemplate, RegimenTemplate regimenTemplate, List<ProgramProduct> programProducts) {
+    this.modifiedBy = rnr.getModifiedBy();
+    copyCreatorEditableFieldsForFullSupply(rnr, rnrTemplate);
+    copyCreatorEditableFieldsForNonFullSupply(rnr, rnrTemplate, programProducts);
+    copyCreatorEditableFieldsForRegimenSkipValidate(rnr, regimenTemplate);
+  }
+
   private void copyCreatorEditableFieldsForRegimen(Rnr rnr, RegimenTemplate regimenTemplate) {
     for (RegimenLineItem regimenLineItem : rnr.regimenLineItems) {
       RegimenLineItem savedRegimenLineItem = this.findCorrespondingRegimenLineItem(regimenLineItem);
       if (savedRegimenLineItem != null) {
         savedRegimenLineItem.copyCreatorEditableFieldsForRegimen(regimenLineItem, regimenTemplate);
         savedRegimenLineItem.setModifiedBy(rnr.getModifiedBy());
+      }
+    }
+  }
+
+  private void copyCreatorEditableFieldsForRegimenSkipValidate(Rnr rnr, RegimenTemplate regimenTemplate) {
+    for (RegimenLineItem regimenLineItem : rnr.regimenLineItems) {
+      RegimenLineItem savedRegimenLineItem = this.findCorrespondingRegimenLineItem(regimenLineItem);
+      if (savedRegimenLineItem != null) {
+        savedRegimenLineItem.copyCreatorEditableFieldsForRegimen(regimenLineItem, regimenTemplate);
+        savedRegimenLineItem.setModifiedBy(rnr.getModifiedBy());
+      } else {
+        regimenLineItem.setModifiedBy(rnr.getModifiedBy());
+        regimenLineItems.add(regimenLineItem);
       }
     }
   }

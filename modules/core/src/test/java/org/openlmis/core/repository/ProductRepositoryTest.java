@@ -20,7 +20,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.runners.MockitoJUnitRunner;
+import org.openlmis.core.builder.KitProductBuilder;
 import org.openlmis.core.builder.ProductBuilder;
+import org.openlmis.core.domain.KitProduct;
 import org.openlmis.core.domain.Product;
 import org.openlmis.core.exception.DataException;
 import org.openlmis.core.repository.mapper.DosageUnitMapper;
@@ -30,12 +32,16 @@ import org.openlmis.db.categories.UnitTests;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
 
+import java.util.Date;
+import java.util.List;
+
 import static com.natpryce.makeiteasy.MakeItEasy.a;
 import static com.natpryce.makeiteasy.MakeItEasy.make;
+import static com.natpryce.makeiteasy.MakeItEasy.with;
+import static java.util.Arrays.asList;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 import static org.openlmis.core.matchers.Matchers.dataExceptionMatcher;
 import static org.powermock.api.mockito.PowerMockito.when;
 
@@ -151,4 +157,68 @@ public class ProductRepositoryTest {
     repository.getById(1l);
     verify(mockedMapper).getById(1l);
   }
+
+  @Test
+  public void shouldInsertKitProductsIfProductHasKitProducts() {
+    KitProduct kitProduct1 = make(a(KitProductBuilder.defaultKit,
+        with(KitProductBuilder.kitCode, product.getCode()),
+        with(KitProductBuilder.productCode, "P1")));
+    KitProduct kitProduct2 = make(a(KitProductBuilder.defaultKit,
+        with(KitProductBuilder.kitCode, product.getCode()),
+        with(KitProductBuilder.productCode, "P2")));
+    product.setKitProductList(asList(kitProduct1, kitProduct2));
+
+    repository.insert(product);
+
+    verify(mockedMapper).insertKitProduct(kitProduct1);
+    verify(mockedMapper).insertKitProduct(kitProduct2);
+
+  }
+
+  @Test
+  public void shouldNotCallInsertKitProductsIfProductHasNoKitProducts() {
+    repository.insert(product);
+
+    verify(mockedMapper, never()).insertKitProduct(any(KitProduct.class));
+  }
+
+  @Test
+  public void shouldCallGetProductsAfterUpdatedTime() {
+    Date date = new Date();
+    repository.getProductsAfterUpdatedTime(date);
+
+    verify(mockedMapper).listProductsAfterUpdatedTime(date);
+  }
+
+  @Test
+  public void shouldUpdateKitProductList() {
+    Product product = make(a(ProductBuilder.defaultProduct, with(ProductBuilder.code, "KIT1")));
+    product.setIsKit(true);
+
+    KitProduct kitProduct1 = make(a(KitProductBuilder.defaultKit,
+        with(KitProductBuilder.kitCode, product.getCode()),
+        with(KitProductBuilder.productCode, "P1")));
+    KitProduct kitProduct2 = make(a(KitProductBuilder.defaultKit,
+        with(KitProductBuilder.kitCode, product.getCode()),
+        with(KitProductBuilder.productCode, "P2")));
+    List<KitProduct> oldKitProductList = asList(kitProduct1, kitProduct2);
+    when(mockedMapper.getKitProductsByKitCode("KIT1")).thenReturn(oldKitProductList);
+
+    KitProduct kitProduct3 = make(a(KitProductBuilder.defaultKit,
+        with(KitProductBuilder.kitCode, product.getCode()),
+        with(KitProductBuilder.productCode, "P3")));
+    KitProduct kitProduct4 = make(a(KitProductBuilder.defaultKit,
+        with(KitProductBuilder.kitCode, product.getCode()),
+        with(KitProductBuilder.productCode, "P4")));
+    List<KitProduct> newKitProductList = asList(kitProduct3, kitProduct4);
+    product.setKitProductList(newKitProductList);
+
+    repository.update(product);
+
+    verify(mockedMapper).deleteKitProduct(kitProduct1);
+    verify(mockedMapper).deleteKitProduct(kitProduct2);
+    verify(mockedMapper).insertKitProduct(kitProduct3);
+    verify(mockedMapper).insertKitProduct(kitProduct4);
+  }
 }
+

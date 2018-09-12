@@ -18,6 +18,7 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import org.openlmis.core.domain.Signature;
 import org.openlmis.core.exception.DataException;
+import org.openlmis.core.hash.Encoder;
 import org.openlmis.core.utils.DateUtil;
 import org.openlmis.rnr.domain.PatientQuantificationLineItem;
 import org.openlmis.rnr.domain.RegimenLineItem;
@@ -46,7 +47,7 @@ public class Report {
 
   private List<RnrLineItem> products;
   private List<RnrLineItem> nonFullSupplyProducts;
-  private List<RegimenLineItem> regimens;
+  private List<RegimenLineItemForRest> regimens;
   private List<PatientQuantificationLineItem> patientQuantifications;
 
   private String agentCode;
@@ -62,12 +63,24 @@ public class Report {
 
   private Date periodStartDate;
 
+  private String actualPeriodStartDate;
+
+  private String actualPeriodEndDate;
+
   private List<Signature> rnrSignatures;
 
   public void validate() {
     if (isEmpty(agentCode) || isEmpty(programCode)) {
       throw new DataException("error.mandatory.fields.missing");
     }
+  }
+
+  public Date getActualPeriodStartDate() {
+    return DateUtil.parseDate(actualPeriodStartDate);
+  }
+
+  public Date getActualPeriodEndDate() {
+    return DateUtil.parseDate(actualPeriodEndDate);
   }
 
   public Date getClientSubmittedTime() {
@@ -110,9 +123,12 @@ public class Report {
     }};
     report.setProducts(fullSupplyProducts);
 
-    ArrayList<RegimenLineItem> regimenLineItems = new ArrayList<RegimenLineItem>() {{
-        addAll(rnr.getRegimenLineItems());
+    ArrayList<RegimenLineItemForRest> regimenLineItems = new ArrayList<RegimenLineItemForRest>() {{
     }};
+
+    for(RegimenLineItem regimenLineItem : rnr.getRegimenLineItems()) {
+      regimenLineItems.add(RegimenLineItemForRest.convertFromRegimenLineItem(regimenLineItem));
+    }
     report.setRegimens(regimenLineItems);
 
     ArrayList<PatientQuantificationLineItem> patientQuantificationLineItems = new ArrayList<PatientQuantificationLineItem>() {{
@@ -130,6 +146,23 @@ public class Report {
     report.setPeriodStartDate(rnr.getPeriod().getStartDate());
     report.setRnrSignatures(rnr.getRnrSignatures());
 
+    if (rnr.getActualPeriodStartDate() != null) {
+      report.setActualPeriodStartDate(DateUtil.formatDate(rnr.getActualPeriodStartDate()));
+    } else {
+      report.setActualPeriodStartDate(DateUtil.formatDate(rnr.getPeriod().getStartDate()));
+    }
+
+    if (rnr.getActualPeriodEndDate() != null) {
+      report.setActualPeriodEndDate(DateUtil.formatDate(rnr.getActualPeriodEndDate()));
+    } else {
+      report.setActualPeriodEndDate(DateUtil.formatDate(rnr.getPeriod().getEndDate()));
+
+    }
+
     return report;
+  }
+
+  public String getSyncUpHash() {
+    return Encoder.hash(actualPeriodStartDate + actualPeriodEndDate + clientSubmittedTime + agentCode + programCode);
   }
 }

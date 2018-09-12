@@ -46,7 +46,7 @@ describe("Geographic Zone Search Controller", function () {
     expect(scope.geoZoneList).toEqual([geoZone]);
     expect(scope.pagination).toEqual(pagination);
     expect(scope.currentPage).toEqual(1);
-    expect(scope.showResults).toEqual(true);
+    expect(scope.showCloseButton).toEqual(true);
     expect(scope.totalItems).toEqual(100);
   });
 
@@ -64,23 +64,25 @@ describe("Geographic Zone Search Controller", function () {
     expect(scope.geoZoneList).toEqual([geoZone]);
     expect(scope.pagination).toEqual(pagination);
     expect(scope.currentPage).toEqual(1);
-    expect(scope.showResults).toEqual(true);
+    expect(scope.showCloseButton).toEqual(true);
     expect(scope.totalItems).toEqual(100);
   });
 
-  it('should clear search param and result list', function () {
+  it('should clear search param and show all result list', function () {
     var geoZone = {"code": "N1", "name": "Node 1"};
     scope.query = "query";
     scope.totalItems = 100;
     scope.geoZoneList = [geoZone];
-    scope.showResults = true;
+    scope.showCloseButton = true;
+    var searchSpy = spyOn(scope, 'search');
 
     scope.clearSearch();
 
-    expect(scope.showResults).toEqual(false);
+    expect(scope.showCloseButton).toEqual(false);
     expect(scope.query).toEqual("");
     expect(scope.totalItems).toEqual(0);
     expect(scope.geoZoneList).toEqual([]);
+    expect(searchSpy).toHaveBeenCalledWith(1,'%');
   });
 
   it('should trigger search on enter key', function () {
@@ -131,6 +133,22 @@ describe("Geographic Zone Search Controller", function () {
 
     expect(navigateBackService.setData).toHaveBeenCalledWith({query: "f1", selectedSearchOption: "zone" });
     expect(location.path).toHaveBeenCalledWith('edit/1');
+  });
+
+  it('should search % on loaded page', function () {
+    var searchSpy = spyOn(scope, 'search');
+    scope.currentPage = 1;
+    scope.$digest();
+
+    expect(searchSpy).toHaveBeenCalledWith(1,'%');
+  });
+
+  it('should trigger search % when change SearchType ', function () {
+    scope.searchOption = {value: "parentName", name: "option.value.geo.zone.parent"};
+    var searchSpy = spyOn(scope, 'search');
+    scope.selectSearchType(scope.searchOption);
+
+    expect(searchSpy).toHaveBeenCalledWith(1,'%');
   });
 
 });

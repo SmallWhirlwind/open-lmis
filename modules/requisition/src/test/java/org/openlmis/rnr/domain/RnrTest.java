@@ -30,10 +30,8 @@ import static com.natpryce.makeiteasy.MakeItEasy.*;
 import static java.util.Arrays.asList;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
-import static org.hamcrest.Matchers.hasItem;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertFalse;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 import static org.openlmis.core.builder.FacilityApprovedProductBuilder.defaultFacilityApprovedProduct;
 import static org.openlmis.core.builder.ProgramProductBuilder.defaultProgramProduct;
@@ -338,6 +336,30 @@ public class RnrTest {
   }
 
   @Test
+  public void shouldCopyAllRegimenFromRnr() throws Exception {
+      Rnr newRnr = make(a(defaultRequisition));
+      List<RegimenColumn> regimenColumns = new ArrayList<>();
+      RegimenLineItem regimenLineItem = make(a(RegimenLineItemBuilder.defaultRegimenLineItem));
+      regimenLineItem.setCode("R02");
+      RegimenLineItem regimenLineItem1 = make(a(RegimenLineItemBuilder.defaultRegimenLineItem));
+      RegimenLineItem spyRegimenLineItem = spy(regimenLineItem);
+      RegimenLineItem spyRegimenLineItem1 = spy(regimenLineItem1);
+      List<RegimenLineItem> spyRegimenLineItems = new ArrayList<>();
+      spyRegimenLineItems.add(spyRegimenLineItem);
+      spyRegimenLineItems.add(spyRegimenLineItem1);
+      newRnr.setModifiedBy(1L);
+      newRnr.setRegimenLineItems(asList(regimenLineItem, regimenLineItem1));
+      rnr.setRegimenLineItems(spyRegimenLineItems);
+      RegimenTemplate regimenTemplate = new RegimenTemplate(1l, regimenColumns);
+      List<RnrColumn> rnrColumns = new ArrayList<>();
+      List<ProgramProduct> programProducts = new ArrayList<>();
+      rnr.copyCreatorEditableFieldsSkipValidate(newRnr, new ProgramRnrTemplate(rnrColumns), regimenTemplate, programProducts);
+
+      assertThat(rnr.getRegimenLineItems().get(0).getModifiedBy(), is(1L));
+      assertThat(rnr.getRegimenLineItems().get(1).getModifiedBy(), is(1L));
+  }
+
+  @Test
   public void shouldNotCopyExtraLineItemForApprovalRnr() throws Exception {
     long userId = 5L;
     Rnr newRnr = make(a(defaultRequisition, with(modifiedBy, userId)));
@@ -522,5 +544,23 @@ public class RnrTest {
     assertThat(rnr.getAllLineItems().size(), is(2));
     assertThat(rnr.getAllLineItems().get(0), is(lineItem1));
     assertThat(rnr.getAllLineItems().get(1), is(lineItem2));
+  }
+
+  @Test
+  public void shouldCalculateRegimeTotal() {
+    ArrayList<RegimenLineItem> regimenLineItems = new ArrayList<>();
+    RegimenLineItem firstRegimenLineItem = new RegimenLineItem();
+    firstRegimenLineItem.setPatientsOnTreatment(10);
+    RegimenLineItem secondRegimenLineItem = new RegimenLineItem();
+    secondRegimenLineItem.setPatientsOnTreatment(20);
+    RegimenLineItem thirdRegimenLineItem = new RegimenLineItem();
+    thirdRegimenLineItem.setPatientsOnTreatment(30);
+
+    regimenLineItems.add(firstRegimenLineItem);
+    regimenLineItems.add(secondRegimenLineItem);
+    regimenLineItems.add(thirdRegimenLineItem);
+
+    rnr.setRegimenLineItems(regimenLineItems);
+    assertEquals(60,rnr.calculateRegimeTotal());
   }
 }

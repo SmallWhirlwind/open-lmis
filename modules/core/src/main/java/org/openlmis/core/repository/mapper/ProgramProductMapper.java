@@ -15,6 +15,7 @@ import org.apache.ibatis.session.RowBounds;
 import org.openlmis.core.domain.*;
 import org.springframework.stereotype.Repository;
 
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -67,6 +68,22 @@ public interface ProgramProductMapper {
       one = @One(select = "org.openlmis.core.repository.mapper.ProductCategoryMapper.getById"))
   })
   List<ProgramProduct> getByProgram(Program program);
+
+  @Select({"SELECT * FROM program_products pp ",
+          "INNER JOIN products p ON pp.productId = p.id ",
+          "INNER JOIN facility_approved_products fap ON pp.id = fap.programproductid ",
+          "WHERE pp.programId = #{programId} ",
+          "AND fap.facilitytypeid = #{facilityTypeId} ",
+          "AND (p.modifieddate > #{afterUpdatedTime} OR fap.modifieddate >  #{afterUpdatedTime} OR pp.modifieddate > #{afterUpdatedTime})",
+          "ORDER BY p.code"})
+  @Results(value = {
+          @Result(property = "id", column = "id"),
+          @Result(property = "program", column = "programId", javaType = Program.class,
+                  one = @One(select = "org.openlmis.core.repository.mapper.ProgramMapper.getById")),
+          @Result(property = "product", column = "productId", javaType = Product.class,
+                  one = @One(select = "org.openlmis.core.repository.mapper.ProductMapper.getById"))
+  })
+  List<ProgramProduct> getByProgramAfterUpdatedTimeFilterByFacilityType(@Param("programId") Long programId, @Param("afterUpdatedTime") Date afterUpdatedTime, @Param("facilityTypeId") Long facilityTypeId);
 
   @Select("SELECT * FROM program_products WHERE id = #{id}")
   @Results(value = {
@@ -184,4 +201,20 @@ public interface ProgramProductMapper {
             @Result(property = "product.id", column = "productid")
     })
   List<ProgramProduct> getAll();
+
+  @Select("SELECT * FROM program_products WHERE modifieddate > #{date}")
+  @Results({
+          @Result(
+                  property = "product", column = "productId", javaType = Product.class,
+                  many = @Many(select = "org.openlmis.core.repository.mapper.ProductMapper.getById"))})
+  List<ProgramProduct> getLatestUpdatedProgramProduct(Date afterUpdatedTime);
+
+  @Select("SELECT pp.*, pr.code AS programCode FROM " +
+          "program_products pp " +
+          "INNER JOIN products p ON pp.productId = p.id INNER JOIN programs pr ON pp.programId = pr.id WHERE p.code = #{code} AND pp.active = true")
+  @Results(value = {
+          @Result(property = "program.code", column = "programCode")
+  })
+  List<String> getActiveProgramCodesByProductCode(String code);
+
 }

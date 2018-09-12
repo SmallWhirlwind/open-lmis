@@ -10,6 +10,7 @@
 
 package org.openlmis.core.repository.mapper;
 
+import org.joda.time.DateTime;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -23,12 +24,14 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.test.context.transaction.TransactionConfiguration;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Date;
 import java.util.List;
 
 import static com.natpryce.makeiteasy.MakeItEasy.*;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 import static org.openlmis.core.builder.FacilityBuilder.*;
 import static org.openlmis.core.builder.ProgramBuilder.*;
 import static org.openlmis.core.builder.ProgramSupportedBuilder.*;
@@ -137,12 +140,40 @@ public class ProgramSupportedMapperIT {
   }
 
   @Test
-  public void shouldGetAllActiveProgramsSupportedForFacility() throws Exception {
+  public void shouldUpdateProgramStartDateByProgramAndFacility() throws Exception {
     Facility facility = make(a(defaultFacility));
     facilityMapper.insert(facility);
 
     Program program = make(a(defaultProgram, with(programCode, YELLOW_FEVER)));
     programMapper.insert(program);
+
+    ProgramSupported programSupported = make(a(defaultProgramSupported,
+        with(supportedFacilityId, facility.getId()),
+        with(supportedProgram, program)));
+
+    programSupported.setStartDate(new DateTime("2016-05-01").toDate());
+    mapper.insert(programSupported);
+
+    Date newStartDate = new DateTime("2016-05-17").toDate();
+    mapper.updateStartDate(facility.getId(), program.getId(), newStartDate);
+    ProgramSupported programSupportedFromDb = mapper.getBy(programSupported.getFacilityId(), programSupported.getProgram().getId());
+
+    assertThat(programSupportedFromDb.getStartDate().getTime(), is(newStartDate.getTime()));
+  }
+
+  @Test
+  public void shouldGetAllActiveProgramsSupportedForFacility() throws Exception {
+    Facility facility = make(a(defaultFacility));
+    facilityMapper.insert(facility);
+
+    Program programParent = make(a(defaultProgram, with(programCode, "XXX")));
+    programMapper.insert(programParent);
+
+    Program program = make(a(defaultProgram, with(programCode, YELLOW_FEVER)));
+    program.setParent(programParent);
+    programMapper.insert(program);
+    programMapper.associateProgramToParent(program.getId(), programParent.getId());
+
     Program program2 = make(a(defaultProgram, with(programCode, GREEN_FEVER)));
     programMapper.insert(program2);
 
@@ -152,6 +183,9 @@ public class ProgramSupportedMapperIT {
     ProgramSupported programSupported = make(a(defaultProgramSupported,
       with(supportedFacilityId, facility.getId()),
       with(supportedProgram, program)));
+    ProgramSupported programSupported1 = make(a(defaultProgramSupported,
+        with(supportedFacilityId, facility.getId()),
+        with(supportedProgram, programParent)));
     ProgramSupported programSupported2 = make(a(defaultProgramSupported,
       with(supportedFacilityId, facility.getId()),
       with(supportedProgram, program2), with(isActive, false)));
@@ -161,12 +195,23 @@ public class ProgramSupportedMapperIT {
 
     mapper.insert(programSupported);
     mapper.insert(programSupported2);
+    mapper.insert(programSupported1);
     mapper.insert(inactiveProgramSupported);
 
     List<ProgramSupported> programsSupported = mapper.getActiveProgramsByFacilityId(facility.getId());
 
-    assertThat(programsSupported.size(), is(1));
-    assertThat(programsSupported.get(0).getProgram().getCode(), is(programSupported.getProgram().getCode()));
+    assertThat(programsSupported.size(), is(2));
+    if (programsSupported.get(0).getProgram().getCode().equals(programParent.getCode())) {
+      assertThat(programsSupported.get(0).getProgram().getIsSupportEmergency(), is(false));
+      assertThat(programsSupported.get(1).getProgram().getCode(), is(programSupported.getProgram().getCode()));
+      assertThat(programsSupported.get(1).getProgram().getParent().getCode(), is(programParent.getCode()));
+    } else if (programsSupported.get(1).getProgram().getCode().equals(programParent.getCode())) {
+      assertThat(programsSupported.get(1).getProgram().getIsSupportEmergency(), is(false));
+      assertThat(programsSupported.get(0).getProgram().getCode(), is(programSupported.getProgram().getCode()));
+      assertThat(programsSupported.get(0).getProgram().getParent().getCode(), is(programParent.getCode()));
+    } else {
+      fail();
+    }
   }
 
   @Test

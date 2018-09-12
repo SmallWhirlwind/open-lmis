@@ -18,14 +18,12 @@ import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
-import org.openlmis.core.domain.DosageUnit;
-import org.openlmis.core.domain.Product;
-import org.openlmis.core.domain.Program;
-import org.openlmis.core.domain.ProgramProduct;
+import org.openlmis.core.domain.*;
 import org.openlmis.core.repository.ProductRepository;
 import org.openlmis.db.categories.UnitTests;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 import static com.natpryce.makeiteasy.MakeItEasy.*;
@@ -294,5 +292,13 @@ public class ProductServiceTest {
     service.getTotalSearchResultCount("search-param");
 
     verify(repository).getTotalSearchResultCount("search-param");
+  }
+
+  @Test
+  public void shouldGetProductsAfterUpdatedTime() throws Exception {
+    Date date = new Date();
+    service.getProductsAfterUpdatedDate(date);
+
+    verify(repository).getProductsAfterUpdatedTime(date);
   }
 }

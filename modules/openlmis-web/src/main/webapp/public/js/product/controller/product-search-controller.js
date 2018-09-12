@@ -15,14 +15,16 @@ function ProductSearchController($scope, ProgramProductsSearch, AdjustmentProduc
     {value: "program", name: "option.value.program"}
   ];
 
-  $scope.showResults = false;
+  $scope.showCloseButton = false;
   $scope.currentPage = 1;
+  $scope.searchedQuery = '%';
   $scope.selectedSearchOption = navigateBackService.selectedSearchOption || $scope.searchOptions[0];
 
   $scope.hasPermission = AuthorizationService.hasPermission;
 
   $scope.selectSearchType = function (searchOption) {
     $scope.selectedSearchOption = searchOption;
+    $scope.loadProducts(1, $scope.searchedQuery);
   };
 
   $scope.$on('$viewContentLoaded', function () {
@@ -60,7 +62,11 @@ function ProductSearchController($scope, ProgramProductsSearch, AdjustmentProduc
       $scope.pagination = data.pagination;
       $scope.totalItems = $scope.pagination.totalRecords;
       $scope.currentPage = $scope.pagination.page;
-      $scope.showResults = true;
+      if($scope.searchedQuery === '%'){
+        $scope.showCloseButton = false;
+      }else {
+        $scope.showCloseButton = true;
+      }
     }, {});
   }
 
@@ -103,7 +109,10 @@ function ProductSearchController($scope, ProgramProductsSearch, AdjustmentProduc
     $scope.query = "";
     $scope.totalItems = 0;
     $scope.programProducts = [];
-    $scope.showResults = false;
+    $scope.showCloseButton = false;
     angular.element("#searchProgramProduct").focus();
+    $scope.searchedQuery= "%";
+    $scope.currentPage = 1;
+    $scope.loadProducts($scope.currentPage, $scope.searchedQuery);
   };
 }

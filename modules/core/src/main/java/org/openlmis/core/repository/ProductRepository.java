@@ -12,6 +12,7 @@ package org.openlmis.core.repository;
 
 import lombok.NoArgsConstructor;
 import org.openlmis.core.domain.DosageUnit;
+import org.openlmis.core.domain.KitProduct;
 import org.openlmis.core.domain.Product;
 import org.openlmis.core.exception.DataException;
 import org.openlmis.core.repository.mapper.DosageUnitMapper;
@@ -22,6 +23,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -44,6 +46,11 @@ public class ProductRepository {
   public void insert(Product product) {
     try {
       mapper.insert(product);
+      if (!product.getKitProductList().isEmpty()) {
+        for (KitProduct kitProduct: product.getKitProductList()) {
+          mapper.insertKitProduct(kitProduct);
+        }
+      }
     } catch (DuplicateKeyException duplicateKeyException) {
       throw new DataException("error.duplicate.product.code");
     } catch (DataIntegrityViolationException dataIntegrityViolationException) {
@@ -59,6 +66,8 @@ public class ProductRepository {
   public void update(Product product) {
     try {
       mapper.update(product);
+      updateKitProductList(product);
+
     } catch (DuplicateKeyException duplicateKeyException) {
       throw new DataException("error.duplicate.product.code");
     } catch (DataIntegrityViolationException dataIntegrityViolationException) {
@@ -67,6 +76,23 @@ public class ProductRepository {
         throw new DataException("error.reference.data.missing");
       } else {
         throw new DataException("error.incorrect.length");
+      }
+    }
+  }
+
+  private void updateKitProductList(Product product) {
+    List<KitProduct> oldKitProductList = mapper.getKitProductsByKitCode(product.getCode());
+    List<KitProduct> newKitProductList = product.getKitProductList();
+
+    if (!oldKitProductList.isEmpty()) {
+      for (KitProduct kitProduct: oldKitProductList) {
+        mapper.deleteKitProduct(kitProduct);
+      }
+    }
+
+    if (!newKitProductList.isEmpty()) {
+      for (KitProduct kitProduct: product.getKitProductList()) {
+        mapper.insertKitProduct(kitProduct);
       }
     }
   }
@@ -100,5 +126,22 @@ public class ProductRepository {
 
   public Product getById(Long id) {
     return mapper.getById(id);
+  }
+
+  public List<Product> getAllProducts(){
+    return mapper.list();
+  }
+
+  public List<Product> getProductsAfterUpdatedTime(Date date) {
+    return mapper.listProductsAfterUpdatedTime(date);
+  }
+
+
+  public List<Product> getProductCodeForUpdateStatus(){
+    return mapper.getAllProductWithCode();
+  }
+
+  public void updateProductStatus(boolean active, long id){
+    mapper.updateProductActiveStatus(active, id);
   }
 }

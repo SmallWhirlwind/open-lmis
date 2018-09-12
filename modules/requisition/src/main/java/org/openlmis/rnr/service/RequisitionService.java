@@ -129,15 +129,27 @@ public class RequisitionService {
         period = proposedPeriod;
       }
     }
+    List<FacilityTypeApprovedProduct> facilityTypeApprovedProducts;
 
-    List<FacilityTypeApprovedProduct> facilityTypeApprovedProducts = facilityApprovedProductService.getFullSupplyFacilityApprovedProductByFacilityAndProgram(
-      facility.getId(), program.getId());
+    if (!staticReferenceDataService.getBoolean("toggle.rnr.multiple.programs")) {
+      facilityTypeApprovedProducts = facilityApprovedProductService.getFullSupplyFacilityApprovedProductByFacilityAndProgram(
+          facility.getId(), program.getId());
+    } else {
+      facilityTypeApprovedProducts = facilityApprovedProductService.getFullSupplyFacilityApprovedProductByFacilityAndProgramIncludingSubPrograms(
+          facility.getId(), program.getId());
+    }
 
      //N:B If usePriceSchedule is selected for the selected program, use the product price from price_schedule table
     if(program.getUsePriceSchedule())
         populateProductsPriceBasedOnPriceSchedule(facility.getId(), program.getId(), facilityTypeApprovedProducts); //non intrusive on the legacy setup
 
-    List<Regimen> regimens = regimenService.getByProgram(program.getId());
+    List<Regimen> regimens = null;
+    if (staticReferenceDataService.getBoolean("toggle.mmia.custom.regimen")) {
+      regimens = regimenService.getRegimensByProgramAndIsCustom(program.getId(), false);
+    } else {
+      regimens = regimenService.getByProgram(program.getId());
+    }
+
     RegimenTemplate regimenTemplate = regimenColumnService.getRegimenTemplateByProgramId(program.getId());
 
     Rnr requisition = new Rnr(facility, program, period, emergency, facilityTypeApprovedProducts, regimens, modifiedBy);
@@ -214,7 +226,12 @@ public class RequisitionService {
 
     } else {
       List<ProgramProduct> programProducts = programProductService.getNonFullSupplyProductsForProgram(savedRnr.getProgram());
-      savedRnr.copyCreatorEditableFields(rnr, rnrTemplate, regimenTemplate, programProducts);
+
+      if (staticReferenceDataService.getBoolean("toggle.mmia.custom.regimen")) {
+        savedRnr.copyCreatorEditableFieldsSkipValidate(rnr, rnrTemplate, regimenTemplate, programProducts);
+      } else {
+        savedRnr.copyCreatorEditableFields(rnr, rnrTemplate, regimenTemplate, programProducts);
+      }
       //TODO: copy only the editable fields.
       savedRnr.setEquipmentLineItems(rnr.getEquipmentLineItems());
     }
@@ -231,7 +248,9 @@ public class RequisitionService {
     if (savedRnr.getStatus() != INITIATED)
       throw new DataException(new OpenLmisMessage(RNR_SUBMISSION_ERROR));
 
-    savedRnr.validateRegimenLineItems(regimenColumnService.getRegimenTemplateByProgramId(savedRnr.getProgram().getId()));
+    if (!staticReferenceDataService.getBoolean("toggle.mmia.custom.regimen")) {
+      savedRnr.validateRegimenLineItems(regimenColumnService.getRegimenTemplateByProgramId(savedRnr.getProgram().getId()));
+    }
 
     if (!requisitionPermissionService.hasPermission(rnr.getModifiedBy(), savedRnr, CREATE_REQUISITION))
       throw new DataException(RNR_OPERATION_UNAUTHORIZED);
@@ -252,7 +271,9 @@ public class RequisitionService {
     if (savedRnr.getStatus() != SUBMITTED)
       throw new DataException(new OpenLmisMessage(RNR_AUTHORIZATION_ERROR));
 
-    savedRnr.validateRegimenLineItems(regimenColumnService.getRegimenTemplateByProgramId(savedRnr.getProgram().getId()));
+    if (!staticReferenceDataService.getBoolean("toggle.mmia.custom.regimen")) {
+      savedRnr.validateRegimenLineItems(regimenColumnService.getRegimenTemplateByProgramId(savedRnr.getProgram().getId()));
+    }
 
     if (!requisitionPermissionService.hasPermission(rnr.getModifiedBy(), savedRnr, AUTHORIZE_REQUISITION))
       throw new DataException(RNR_OPERATION_UNAUTHORIZED);
@@ -265,7 +286,8 @@ public class RequisitionService {
     calculationService.perform(savedRnr, template);
     savedRnr.setFieldsForApproval();
 
-    return update(savedRnr);
+    requisitionRepository.update(savedRnr);
+    return savedRnr;
   }
 
   @Transactional
@@ -375,7 +397,7 @@ public class RequisitionService {
 
   public ProcessingPeriod getPeriodForInitiating(Facility facility, Program program) {
     Date programStartDate = programService.getProgramStartDate(facility.getId(), program.getId());
-    Rnr lastRegularRequisition = requisitionRepository.getLastRegularRequisition(facility, program);
+    Rnr lastRegularRequisition = getLastRegularRequisition(facility, program);
     Long periodIdForLastRequisition = null;
     if (lastRegularRequisition != null) {
       if (lastRegularRequisition.preAuthorize()) {
@@ -390,6 +412,10 @@ public class RequisitionService {
       throw new DataException("error.program.configuration.missing");
     }
     return periods.get(0);
+  }
+
+  public Rnr getLastRegularRequisition(Facility facility, Program program) {
+    return requisitionRepository.getLastRegularRequisition(facility, program);
   }
 
   public List<ProcessingPeriod> getAllPeriodsForInitiatingRequisition(Long facilityId, Long programId) {
@@ -482,7 +508,7 @@ public class RequisitionService {
     return requisition;
   }
 
-  private void logStatusChangeAndNotify(Rnr requisition, boolean notifyStatusChange, String name) {
+  public void logStatusChangeAndNotify(Rnr requisition, boolean notifyStatusChange, String name) {
     requisitionRepository.logStatusChange(requisition, name);
     if (notifyStatusChange) {
       requisitionEventService.notifyForStatusChange(requisition);
@@ -680,6 +706,14 @@ public class RequisitionService {
   @Transactional
   public void insertRnrSignatures(Rnr rnr) {
     requisitionRepository.insertRnrSignatures(rnr);
+  }
+
+  public void saveClientPeriod(Rnr rnr) {
+    requisitionRepository.saveClientPeriod(rnr);
+  }
+
+  public List<Rnr> getNormalRnrsByPeriodAndProgram(Date periodBeginDate, Date periodEndDate, Long programId, Long facilityId) {
+    return requisitionRepository.findNormalRnrByPeriodAndProgram(periodBeginDate, periodEndDate, programId, facilityId);
   }
 }
 
